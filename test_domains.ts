@@ -1,0 +1,21 @@
+import { createClient } from '@supabase/supabase-js'
+import * as dotenv from 'dotenv'
+
+dotenv.config({ path: '.env.local' })
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase URL or Key in .env.local')
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+async function test() {
+  const { data, error } = await supabase.from('domains').select('id, name').order('name')
+  console.log('Data:', data)
+  console.log('Error:', error)
+}
+
+test()
