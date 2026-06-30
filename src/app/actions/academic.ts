@@ -991,11 +991,13 @@ export async function seedMasterCurriculum() {
       { course_code: "MGTE 42333", course_name: "Business and IT Law", credits: 3, year: 4, semester: 2, is_compulsory: true, category: "Management" }
     ]
 
-    await supabase.from('curriculum_modules').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    const { data, error } = await supabase.from('curriculum_modules').insert(curriculum).select()
+    const { data, error } = await supabase
+      .from('curriculum_modules')
+      .upsert(curriculum, { onConflict: 'course_code' })
+      .select()
 
     if (error) throw error
-    return { success: true, count: data.length }
+    return { success: true, count: data ? data.length : 0 }
   } catch (err: any) {
     console.error('seedMasterCurriculum error:', err)
     return { success: false, error: err.message }

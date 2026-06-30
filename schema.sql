@@ -125,7 +125,7 @@ create table public.domains (
 -- CURRICULUM MODULES (The Master Catalog preloaded by seeder)
 create table public.curriculum_modules (
   id uuid default gen_random_uuid() primary key,
-  course_code text not null,
+  course_code text not null unique,
   course_name text not null,
   credits integer not null,
   year integer not null,

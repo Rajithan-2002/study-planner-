@@ -157,7 +157,7 @@ CREATE TABLE public.skills (
 
 CREATE TABLE public.curriculum_modules (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  course_code text NOT NULL,
+  course_code text NOT NULL UNIQUE,
   course_name text NOT NULL,
   credits integer NOT NULL,
   year integer NOT NULL,
