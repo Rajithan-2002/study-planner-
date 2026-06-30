@@ -3,20 +3,21 @@ import { getAcademicRoadmap, addModuleToPlan } from '@/app/actions/academic'
 import Link from 'next/link'
 
 export default async function AcademicRoadmapPage() {
-  const { curriculum, studentModules } = await getAcademicRoadmap()
+  const { curriculum, studentModules, user } = await getAcademicRoadmap()
 
   async function addModuleAction(formData: FormData) {
     'use server'
     await addModuleToPlan(formData)
   }
 
-  // Helper to check if a curriculum module has been added to the student's plan
-  const isModuleSelected = (curriculumId: string) => {
-    return studentModules.some(m => m.curriculum_module_id === curriculumId)
+  // Helper to check if a curriculum module has been completed or added
+  const isModuleSelected = (curriculumId: string, courseCode: string) => {
+    return studentModules.some(m => m.curriculum_module_id === curriculumId || m.code?.trim().toLowerCase() === courseCode?.trim().toLowerCase())
   }
 
-  // Calculate totals
-  const totalCreditsRequired = 120 // standard 4-year degree
+  // Calculate totals dynamically from curriculum catalog
+  const catalogTotalCredits = curriculum.reduce((sum, m) => sum + (m.credits || 0), 0)
+  const totalCreditsRequired = catalogTotalCredits > 0 ? catalogTotalCredits : 120
   const completedModules = studentModules.filter(m => m.status === 'COMPLETED')
   const earnedCredits = completedModules.reduce((sum, m) => sum + (m.credits || 0), 0)
   const progressPercentage = Math.min((earnedCredits / totalCreditsRequired) * 100, 100)
@@ -68,12 +69,22 @@ export default async function AcademicRoadmapPage() {
           const yearModules = curriculum.filter(m => m.year === year)
           if (yearModules.length === 0 && year > 2) return null
           
-          // Determine Year Status
+          // Determine Year Status dynamically
+          const userYear = user?.current_year || 2
+          const studentModsInYear = studentModules.filter(sm => sm.year === year || curriculum.some(cm => cm.id === sm.curriculum_module_id && cm.year === year))
+          const hasOngoing = studentModsInYear.some(m => m.status === 'ONGOING')
+          const allCompleted = studentModsInYear.length > 0 && studentModsInYear.every(m => m.status === 'COMPLETED')
+          
           let yearStatus = 'Planned'
           let statusColor = 'text-muted-foreground border-border bg-secondary'
           
-          if (year === 1) { yearStatus = 'Completed'; statusColor = 'text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 border-emerald-200' }
-          if (year === 2) { yearStatus = 'In Progress'; statusColor = 'text-primary bg-primary/10 border-primary/20' }
+          if (allCompleted || year < userYear) { 
+            yearStatus = 'Completed' 
+            statusColor = 'text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 border-emerald-200' 
+          } else if (hasOngoing || year === userYear) { 
+            yearStatus = 'In Progress' 
+            statusColor = 'text-primary bg-primary/10 border-primary/20' 
+          }
 
           return (
             <div key={year} className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
@@ -100,7 +111,7 @@ export default async function AcademicRoadmapPage() {
                       
                       <div className="space-y-3">
                         {semModules.map(mod => {
-                          const selected = isModuleSelected(mod.id)
+                          const selected = isModuleSelected(mod.id, mod.course_code)
                           
                           return (
                             <div key={mod.id} className={`p-4 rounded-lg border ${selected || mod.is_compulsory ? 'bg-background border-border' : 'bg-secondary/30 border-dashed border-border'}`}>

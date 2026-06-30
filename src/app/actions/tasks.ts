@@ -24,11 +24,41 @@ export async function toggleTaskStatus(taskId: string, currentStatus: string) {
     revalidatePath('/today')
     revalidatePath('/projects')
     revalidatePath('/certifications')
+    revalidatePath('/academic')
+    revalidatePath('/timeline')
     revalidatePath('/')
-    
     return { success: true, status: newStatus, data }
   } catch (err: any) {
     console.error('toggleTaskStatus exception:', err)
+    return { success: false, error: err.message || 'Server error occurred' }
+  }
+}
+
+export async function deleteTask(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error deleting task:', error.message)
+      return { success: false, error: error.message || 'Failed to delete task' }
+    }
+
+    revalidatePath('/today')
+    revalidatePath('/projects')
+    revalidatePath('/certifications')
+    revalidatePath('/academic')
+    revalidatePath('/timeline')
+    revalidatePath('/')
+    return { success: true }
+  } catch (err: any) {
+    console.error('deleteTask exception:', err)
     return { success: false, error: err.message || 'Server error occurred' }
   }
 }
@@ -72,6 +102,8 @@ export async function createTask(formData: FormData) {
     revalidatePath('/today')
     revalidatePath('/projects')
     revalidatePath('/certifications')
+    revalidatePath('/academic')
+    revalidatePath('/timeline')
     revalidatePath('/')
     return { success: true, data }
   } catch (err: any) {
@@ -109,6 +141,8 @@ export async function createQuickTask(title: string, relatedEntityType?: string,
     revalidatePath('/today')
     revalidatePath('/projects')
     revalidatePath('/certifications')
+    revalidatePath('/academic')
+    revalidatePath('/timeline')
     revalidatePath('/')
     return { success: true, data }
   } catch (err: any) {
@@ -122,6 +156,7 @@ export async function createTaskDirect(data: {
   description?: string
   priority?: string
   due_date?: string
+  goal_id?: string
 }) {
   try {
     const supabase = await createClient()
@@ -133,6 +168,7 @@ export async function createTaskDirect(data: {
       description: data.description || null,
       priority: data.priority || 'LOW',
       due_date: data.due_date || null,
+      goal_id: data.goal_id || null,
       status: 'PENDING'
     }).select().single()
 
@@ -146,6 +182,8 @@ export async function createTaskDirect(data: {
     revalidatePath('/today')
     revalidatePath('/projects')
     revalidatePath('/certifications')
+    revalidatePath('/academic')
+    revalidatePath('/timeline')
     revalidatePath('/')
     return { success: true, data: task }
   } catch (err: any) {

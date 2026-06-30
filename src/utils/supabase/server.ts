@@ -31,14 +31,10 @@ export async function createClient() {
 export async function getCurrentUserId(): Promise<string> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    return user.id
+  if (!user) {
+    throw new Error('UNAUTHORIZED: No active session. Please sign in.')
   }
-  const devId = process.env.DEV_USER_ID
-  if (!devId) {
-    throw new Error('Unauthorized: No active session and DEV_USER_ID is not set')
-  }
-  return devId
+  return user.id
 }
 
 export async function logActivity(action: string, entityType?: string, entityId?: string) {

@@ -76,11 +76,11 @@ async function run() {
       } else if (cm.year === 2 && cm.semester === 2) {
         semId = semY2S2
         // Make AI and Data Structures and Web Apps ongoing / results pending
-        if (cm.course_code === 'AI202') {
+        if (cm.course_code === 'INTE 22303') {
           status = 'ONGOING'
-        } else if (cm.course_code === 'DSA202') {
+        } else if (cm.course_code === 'INTE 22343') {
           status = 'ONGOING'
-        } else if (cm.course_code === 'DIST202') {
+        } else if (cm.course_code === 'INTE 22253') {
           status = 'ONGOING'
         } else {
           status = 'ONGOING'
@@ -108,13 +108,15 @@ async function run() {
   if (smErr) console.error('Error seeding student modules:', smErr)
   console.log('Student modules seeded:', studentMods?.length)
 
-  const modAI = studentMods?.find(m => m.code === 'AI202')?.id
-  const modDSA = studentMods?.find(m => m.code === 'DSA202')?.id
+  const modAI = studentMods?.find(m => m.code === 'INTE 22303')?.id
+  const modDSA = studentMods?.find(m => m.code === 'INTE 22343')?.id
 
   // 4. Create Timetable Sessions
   const sessionsToCreate = [
     { module_id: modAI, day: 'Monday', start_time: '08:00:00', end_time: '09:30:00', location: 'CS-201, Room 301', session_type: 'LECTURE' },
-    { module_id: modDSA, day: 'Monday', start_time: '13:00:00', end_time: '14:30:00', location: 'CS-203, Lab 2', session_type: 'PRACTICAL' }
+    { module_id: modDSA, day: 'Monday', start_time: '13:00:00', end_time: '14:30:00', location: 'CS-203, Lab 2', session_type: 'PRACTICAL' },
+    { module_id: modAI, day: 'Tuesday', start_time: '09:00:00', end_time: '10:30:00', location: 'CS-201, Room 301', session_type: 'LECTURE' },
+    { module_id: modDSA, day: 'Tuesday', start_time: '11:00:00', end_time: '12:30:00', location: 'CS-203, Lab 2', session_type: 'LECTURE' }
   ]
   const { data: sessions, error: sessErr } = await supabase.from('timetable_sessions').insert(sessionsToCreate).select()
   if (sessErr) console.error('Error seeding sessions:', sessErr)

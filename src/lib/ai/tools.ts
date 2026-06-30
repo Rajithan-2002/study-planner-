@@ -301,20 +301,11 @@ export const generate_weekly_review = tool({
       .eq('status', 'COMPLETED')
       .gte('updated_at', lastWeek.toISOString())
 
-    // 4. Study Sessions logged in the last 7 days
-    const { data: studySessions } = await supabase.from('study_sessions')
-      .select('duration_minutes, created_at, module_id')
-      .eq('user_id', userId || '')
-      .gte('created_at', lastWeek.toISOString())
-
     const output = { 
       projectsUpdated: projectsUpdated || [], 
       certsUpdated: certsUpdated || [],
       completedTasksCount: completedTasks?.length || 0,
-      completedTasks: completedTasks || [],
-      studySessionsCount: studySessions?.length || 0,
-      totalStudyMinutes: (studySessions || []).reduce((sum, s) => sum + s.duration_minutes, 0),
-      studySessions: studySessions || []
+      completedTasks: completedTasks || []
     }
     
     await logToolUsage('generate_weekly_review', {}, output)
@@ -360,51 +351,82 @@ export const process_inbox_item = tool({
 // DANGEROUS WRITE TOOLS
 
 export const create_task = tool({
-  description: 'Proposes creating a new task. You MUST explicitly ask the user "Create this task?" and wait for their confirmation before executing.',
+  description: 'Proposes creating a new task. Returns a proposal card the user can confirm with one click. Do NOT execute DB writes yourself — just call this tool with the task details.',
   parameters: z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-    due_date: z.string().optional().describe('ISO date string')
+    title: z.string().describe('Title of the task'),
+    description: z.string().nullable().optional().describe('Optional detailed description'),
+    priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).nullable().optional().describe('Priority level'),
+    due_date: z.string().nullable().optional().describe('ISO date string YYYY-MM-DD')
   }),
   execute: async ({ title, description, priority, due_date }: any) => {
-    const supabase = await createClient()
-    const userId = await getCurrentUserId()
-
-    const { data, error } = await supabase.from('tasks').insert({
-      user_id: userId,
-      title,
-      description,
-      priority: priority || 'LOW',
-      due_date: due_date || null
-    }).select().single()
-
-    await logToolUsage('create_task', { title, description, priority, due_date }, { success: !error, data, error })
-    return { success: !error, task: data, error: error?.message }
+    // Return a proposal — the UI ActionCard will perform the actual insert when the user clicks "Add to Life OS"
+    await logToolUsage('create_task', { title, description, priority, due_date }, { proposed: true })
+    return { proposed: true, title, description: description || null, priority: priority || 'MEDIUM', due_date: due_date || null }
   }
 } as any)
 
 export const create_life_event = tool({
-  description: 'Proposes creating a new life event. You MUST ask for user confirmation first.',
+  description: 'Proposes creating a new life event. Returns a proposal card the user can confirm with one click.',
   parameters: z.object({
-    title: z.string(),
-    type: z.enum(['EXAM', 'ASSIGNMENT', 'CERT_EXAM', 'PROJECT_MILESTONE', 'COMPETITION', 'INTERNSHIP_DEADLINE']),
-    event_date: z.string().describe('ISO date string'),
-    importance: z.number().describe('0-100')
+    title: z.string().describe('Title of the event'),
+    type: z.enum(['EXAM', 'ASSIGNMENT', 'CERT_EXAM', 'PROJECT_MILESTONE', 'COMPETITION', 'INTERNSHIP_DEADLINE']).describe('Type of life event'),
+    event_date: z.string().describe('ISO date string YYYY-MM-DD'),
+    importance: z.number().nullable().optional().describe('0-100 scale importance')
   }),
   execute: async ({ title, type, event_date, importance }: any) => {
-    const supabase = await createClient()
-    const userId = await getCurrentUserId()
-
-    const { data, error } = await supabase.from('life_events').insert({
-      user_id: userId,
-      title,
-      type,
-      event_date,
-      importance: importance || 0
-    }).select().single()
-
-    await logToolUsage('create_life_event', { title, type, event_date, importance }, { success: !error, data, error })
-    return { success: !error, event: data, error: error?.message }
+    // Return a proposal — the UI ActionCard will perform the actual insert when the user clicks "Add to Life OS"
+    await logToolUsage('create_life_event', { title, type, event_date, importance }, { proposed: true })
+    return { proposed: true, title, type, event_date, importance: importance || 50 }
   }
 } as any)
+
+export const add_timetable_schedule = tool({
+  description: 'Proposes importing structured class schedule sessions into the users timetable and dashboards. You MUST ask for user confirmation first.',
+  parameters: z.object({
+    sessions: z.array(z.object({
+      module_name: z.string().describe('Name of the course/module'),
+      module_code: z.string().nullable().optional().describe('Course code e.g. INTE 22303'),
+      day: z.string().describe('Day of week e.g. Monday, Tuesday'),
+      start_time: z.string().describe('24h time string HH:MM:SS e.g. 09:00:00'),
+      end_time: z.string().describe('24h time string HH:MM:SS e.g. 11:00:00'),
+      location: z.string().nullable().optional().describe('Room or lab location'),
+      session_type: z.string().nullable().optional().describe('LECTURE or PRACTICAL')
+    })).describe('Array of class sessions extracted from timetable')
+  }),
+  execute: async ({ sessions }: any) => {
+    await logToolUsage('add_timetable_schedule', { count: sessions?.length }, { success: true })
+    return { success: true, sessions_count: sessions?.length }
+  }
+} as any)
+
+export const get_notes = tool({
+  description: 'Retrieves all active notes and snippets recorded in the user\'s second brain repository. Use this to answer queries about what notes the user has created.',
+  parameters: z.object({}),
+  execute: async () => {
+    const startTime = Date.now()
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+    let success = true
+    let errorMsg: string | null = null
+    let output: any[] = []
+
+    try {
+      const { data, error } = await supabase.from('notes')
+        .select('id, title, content, tags, created_at, domain_id, is_archived')
+        .eq('user_id', userId || '')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      output = (data || []).filter(n => !n.is_archived && !(n.tags && n.tags.includes('archived')))
+    } catch (err: any) {
+      success = false
+      errorMsg = err.message
+      console.error('Error running get_notes tool:', err)
+    }
+
+    const duration = Date.now() - startTime
+    await logToolUsage('get_notes', {}, output, success, errorMsg, duration)
+    return output
+  }
+} as any)
+

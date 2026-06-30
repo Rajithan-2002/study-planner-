@@ -15,21 +15,26 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  Inbox
+  Inbox,
+  Brain,
+  Activity,
+  Target
 } from 'lucide-react'
 import { getUserProfile } from '@/app/actions/profile'
-import { ProfileModal } from './ProfileModal'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Inbox Queue', href: '/inbox', icon: Inbox },
   { name: 'AI Assistant', href: '/assistant', icon: Bot },
   { name: 'Today', href: '/today', icon: Clock },
+  { name: 'Planning Center', href: '/planning', icon: Target },
   { name: 'Timeline', href: '/timeline', icon: CalendarDays },
   { name: 'Academic Hub', href: '/academic', icon: GraduationCap },
   { name: 'Projects', href: '/projects', icon: Briefcase },
   { name: 'Certifications', href: '/certifications', icon: Award },
   { name: 'Knowledge Hub', href: '/knowledge', icon: Library },
+  { name: 'Memory Workspace', href: '/memory', icon: Brain },
+  { name: 'Automation Center', href: '/automation', icon: Activity },
 ]
 
 export function Sidebar() {
@@ -37,7 +42,6 @@ export function Sidebar() {
   const router = useRouter()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [profile, setProfile] = useState<any>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchProfile = async () => {
     const data = await getUserProfile()
@@ -48,7 +52,16 @@ export function Sidebar() {
 
   useEffect(() => {
     fetchProfile()
-  }, [])
+
+    const handleProfileUpdate = () => {
+      fetchProfile()
+    }
+
+    window.addEventListener('profile-updated', handleProfileUpdate)
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate)
+    }
+  }, [pathname])
 
   const getInitials = (name: string | null) => {
     if (!name) return 'OS'
@@ -113,34 +126,24 @@ export function Sidebar() {
       {/* User Profile */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar">
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => router.push('/settings')}
           className={`flex items-center w-full text-left p-2 rounded-xl hover:bg-sidebar-accent transition-colors cursor-pointer group ${isCollapsed ? 'justify-center' : 'gap-3'}`}
-          title="Edit Profile"
+          title="System Settings"
         >
           <div className="h-9 w-9 shrink-0 rounded-lg bg-secondary flex items-center justify-center border border-sidebar-border shadow-inner group-hover:border-primary transition-colors">
-            <span className="text-xs font-bold text-primary">{profile ? getInitials(profile.full_name) : 'AS'}</span>
+            <span className="text-xs font-bold text-primary">{profile ? getInitials(profile.full_name) : 'SU'}</span>
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0 pr-1 flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">{profile?.full_name || 'Akhil Shetty'}</p>
-                <p className="text-[10px] font-medium text-muted-foreground truncate">{profile?.degree_name || 'Student profile active'}</p>
+                <p className="text-xs font-bold text-foreground truncate">{profile?.full_name || 'Student User'}</p>
+                <p className="text-[10px] font-medium text-muted-foreground truncate">{profile?.degree_name || 'System Settings'}</p>
               </div>
               <Settings className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0" />
             </div>
           )}
         </button>
       </div>
-
-      <ProfileModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        initialProfile={profile} 
-        onUpdate={() => {
-          fetchProfile()
-          router.refresh()
-        }}
-      />
     </div>
   )
 }

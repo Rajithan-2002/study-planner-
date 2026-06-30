@@ -1,4 +1,5 @@
-import { BookOpen } from 'lucide-react'
+import Link from 'next/link'
+import { BookOpen, ArrowLeft } from 'lucide-react'
 import { getModuleWorkspace } from '@/app/actions/academic'
 import { ModuleWorkspaceTabs } from '@/components/academic/ModuleWorkspaceTabs'
 
@@ -58,27 +59,37 @@ export default async function ModuleWorkspacePage({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out pb-20 md:pb-0">
       
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
-        <div className="flex items-center gap-5">
-          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <BookOpen className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-foreground font-sans">
-              {module.name}
-            </h2>
-            <div className="flex items-center gap-3 mt-1 text-xs font-semibold">
-              <span className="inline-flex items-center rounded bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary">
-                {module.code}
-              </span>
-              <span className="text-muted-foreground">
-                {module.credits} Credits
-              </span>
-              <span className="text-border">•</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                {module.status.replace('_', ' ')}
-              </span>
+      {/* BACK BUTTON & HEADER */}
+      <div className="space-y-4 border-b border-border pb-6">
+        <Link 
+          href="/academic" 
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-secondary hover:bg-secondary/80 text-foreground transition-all group border border-border w-fit"
+        >
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          Back to Academic Hub
+        </Link>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+              <BookOpen className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-foreground font-sans">
+                {module.name}
+              </h2>
+              <div className="flex items-center gap-3 mt-1 text-xs font-semibold">
+                <span className="inline-flex items-center rounded bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary">
+                  {module.code}
+                </span>
+                <span className="text-muted-foreground">
+                  {module.credits} Credits
+                </span>
+                <span className="text-border">•</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                  {module.status.replace('_', ' ')}
+                </span>
+              </div>
             </div>
           </div>
         </div>

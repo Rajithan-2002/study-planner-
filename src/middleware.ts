@@ -1,9 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// ─── Public Routes ────────────────────────────────────────────────────────────
+// These paths do not require authentication.
+const PUBLIC_ROUTES = [
+  '/login',
+  '/signup',
+  '/auth/callback',
+  '/auth/verify-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  let response = NextResponse.next({
+    request: { headers: request.headers },
   })
 
   const supabase = createServerClient(
@@ -15,48 +26,53 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Refresh session — MUST call getUser() not getSession() per Supabase SSR docs
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Enforce auth guards (Disabled for local development)
-  /*
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  const path = request.nextUrl.pathname
+  const isPublicRoute = PUBLIC_ROUTES.some(r => path === r || path.startsWith(r + '?'))
+  const isStaticAsset = path.startsWith('/_next') || path.includes('.')
+  const isApiRoute = path.startsWith('/api')
+
+  // ─── Protect API Routes ──────────────────────────────────────────────────
+  // Return 401 JSON instead of redirecting (for client fetch calls)
+  if (!user && isApiRoute) {
+    return NextResponse.json(
+      { error: 'Unauthorized: Authentication required', code: 'UNAUTHORIZED' },
+      { status: 401 }
+    )
   }
-  */
 
-  return supabaseResponse
+  // ─── Protect App Routes ──────────────────────────────────────────────────
+  if (!user && !isPublicRoute && !isStaticAsset) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirectTo', path)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // ─── Prevent Authenticated Users From Seeing Auth Pages ─────────────────
+  if (user && isPublicRoute && path !== '/auth/callback') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // ─── Inject User ID Header for Downstream Use ────────────────────────────
+  if (user) {
+    response.headers.set('x-user-id', user.id)
+  }
+
+  return response
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

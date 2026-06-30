@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { getDomains } from '@/app/actions/domains'
 import { createInboxItem, createNoteDirect } from '@/app/actions/quick-capture'
 import { createTaskDirect } from '@/app/actions/tasks'
+import { createProjectDirect } from '@/app/actions/projects'
+import { createCertificationDirect } from '@/app/actions/certifications'
 import { createLifeEventDirect } from '@/app/actions/life-events'
 import { createDomain } from '@/app/actions/domains'
 import { UploadDialog } from '@/components/knowledge/upload-dialog'
@@ -62,6 +64,10 @@ export function QuickAddButton() {
           priority: priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
           due_date: dueDate || undefined,
         })
+      } else if (activeModal === 'Project Idea') {
+        await createProjectDirect(title)
+      } else if (activeModal === 'Certification Idea') {
+        await createCertificationDirect(title)
       } else if (activeModal === 'Note') {
         const content = formData.get('content') as string
         const domainId = formData.get('domain_id') as string || undefined
@@ -79,7 +85,6 @@ export function QuickAddButton() {
       } else if (activeModal === 'Domain') {
         await createDomain(title)
       } else {
-        // Project Idea, Certification Idea -> send to INBOX
         const typePrefix = activeModal ? `[${activeModal}] ` : ''
         await createInboxItem(`${typePrefix}${title}`)
       }

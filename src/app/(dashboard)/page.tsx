@@ -1,4 +1,4 @@
-import { Target, Calendar, AlertCircle, Clock, GraduationCap, Award, Briefcase, Sparkles, ChevronRight } from 'lucide-react'
+import { Target, Calendar, AlertCircle, Clock, GraduationCap, Award, Briefcase, Sparkles, ChevronRight, Activity } from 'lucide-react'
 import { getDashboardData } from '@/app/actions/dashboard'
 import Link from 'next/link'
 import { QuickCapture } from '@/components/dashboard/QuickCapture'
@@ -34,65 +34,114 @@ export default async function DashboardPage() {
         {/* LEFT COLUMN: 70% */}
         <div className="w-full lg:w-[70%] space-y-8">
           
-          {/* HERO: TODAY'S FOCUS */}
-          <div className="rounded-xl border border-border bg-card p-6 md:p-8 shadow-xs relative overflow-hidden">
-            <div className="relative z-10 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <Target className="h-5 w-5" />
-                </div>
-                <h3 className="text-xl font-bold tracking-tight text-foreground">Today's Focus</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Today's Classes */}
-                <div className="space-y-4 bg-background p-5 rounded-lg border border-border">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" /> Today's Schedule
-                  </h4>
-                  {todaysClasses.length === 0 ? (
-                    <p className="text-sm text-muted-foreground font-medium py-2">No classes scheduled today.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {todaysClasses.map(cls => (
-                        <div key={cls.id} className="flex justify-between items-center bg-card p-3 rounded-md border border-border">
-                          <span className="text-sm font-bold text-foreground truncate max-w-[150px]">{cls.module?.name}</span>
-                          <span className="text-xs font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded">{cls.start_time.substring(0, 5)}</span>
-                        </div>
-                      ))}
+          {/* HERO: TODAY'S FOCUS & INTELLIGENT PLAN */}
+          {(() => {
+            const planning = data.planningStats || {
+              totalRemainingHours: 0,
+              totalEstimatedHours: 0,
+              todayRecommendedHours: 0,
+              weeklyCapacityHours: 32,
+              planningHealth: 100,
+              averageCompletionProbability: 100,
+              dailyPlanAllocations: []
+            }
+            return (
+              <div className="rounded-xl border border-border bg-card p-6 md:p-8 shadow-xs relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[50px] pointer-events-none rounded-full" />
+                
+                <div className="relative z-10 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                        <Target className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold tracking-tight text-foreground">Intelligent Planning</h3>
+                        <p className="text-xs text-muted-foreground font-semibold">Dynamic allocations calculated from workload remaining & capacity.</p>
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Top Priorities */}
-                <div className="space-y-4 bg-background p-5 rounded-lg border border-border">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-destructive" /> Urgent Tasks
-                  </h4>
-                  {focusItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground font-medium py-2">No high-priority tasks pending.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {focusItems.slice(0, 2).map((item, idx) => (
-                        <div key={idx} className={`flex justify-between items-center p-3 rounded-md border ${item.isOverdue ? 'bg-destructive/5 border-destructive/20' : 'bg-card border-border'}`}>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-bold text-foreground truncate max-w-[160px]">{item.title}</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider mt-1 ${item.isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>{item.subtitle}</span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-muted-foreground">Planning Health:</span>
+                      <span className={`text-xs font-black px-2.5 py-1 rounded-full ${planning.planningHealth >= 80 ? 'bg-emerald-500/10 text-emerald-500' : planning.planningHealth >= 50 ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                        {planning.planningHealth}%
+                      </span>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Today's Recommended Plan */}
+                    <div className="lg:col-span-7 space-y-4 bg-background p-5 rounded-lg border border-border">
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                        <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Today's Flexible Workload</span>
+                        <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded">{planning.todayRecommendedHours}h Recommended</span>
+                      </h4>
+                      
+                      {planning.dailyPlanAllocations.length === 0 ? (
+                        <p className="text-xs text-muted-foreground font-semibold py-4 text-center">No active workload allocations scheduled for today. You are fully caught up!</p>
+                      ) : (
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto scrollbar-thin">
+                          {planning.dailyPlanAllocations.map((alloc: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center bg-card p-3 rounded-md border border-border hover:border-muted-foreground/20 transition-colors">
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-xs font-extrabold text-foreground truncate">{alloc.name}</span>
+                                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[8px] font-black uppercase text-primary tracking-wider">{alloc.type}</span>
+                                  <span className="truncate max-w-[150px]">• {alloc.reason}</span>
+                                </span>
+                              </div>
+                              <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">
+                                {alloc.allocated_minutes >= 60 ? `${(alloc.allocated_minutes / 60).toFixed(1)}h` : `${alloc.allocated_minutes}m`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Planning & Capacity Stats */}
+                    <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+                      <div className="bg-background p-4 rounded-lg border border-border flex flex-col justify-between">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Remaining Hours</span>
+                        <div className="mt-2">
+                          <span className="text-2xl font-black text-foreground">{planning.totalRemainingHours}h</span>
+                          <span className="text-[9px] font-semibold text-muted-foreground block mt-1">out of {planning.totalEstimatedHours}h estimated</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-background p-4 rounded-lg border border-border flex flex-col justify-between">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Forecast Probability</span>
+                        <div className="mt-2">
+                          <span className={`text-2xl font-black ${planning.averageCompletionProbability >= 80 ? 'text-emerald-500' : planning.averageCompletionProbability >= 50 ? 'text-amber-500' : 'text-destructive'}`}>
+                            {planning.averageCompletionProbability}%
+                          </span>
+                          <span className="text-[9px] font-semibold text-muted-foreground block mt-1">Likelihood of meeting deadlines</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-background p-4 rounded-lg border border-border flex flex-col justify-between col-span-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Weekly Capacity Load</span>
+                          <span className="text-xs font-extrabold text-foreground">{planning.weeklyCapacityHours}h / week</span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full transition-all duration-500" 
+                            style={{ width: `${Math.min(100, (planning.totalRemainingHours / Math.max(1, planning.weeklyCapacityHours)) * 100)}%` }} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )
+          })()}
 
           {/* METRICS ROW (Academic, Projects, Certs) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Academic Status */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35">
+            <Link href="/academic" className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35 block cursor-pointer">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <GraduationCap className="h-5 w-5" />
@@ -104,7 +153,6 @@ export default async function DashboardPage() {
                   <span className="text-xs text-muted-foreground font-bold">GPA</span>
                   <div className="text-right leading-none">
                     <span className="text-2xl font-black tracking-tight text-foreground">{academicStats.currentGpa.toFixed(2)}</span>
-                    <span className="text-xs text-muted-foreground font-bold ml-1">/ {academicStats.targetGpa.toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -126,10 +174,10 @@ export default async function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Projects Status */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35">
+            <Link href="/projects" className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35 block cursor-pointer">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <Briefcase className="h-5 w-5" />
@@ -160,10 +208,10 @@ export default async function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Certifications Status */}
-            <div className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35">
+            <Link href="/certifications" className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35 block cursor-pointer">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <Award className="h-5 w-5" />
@@ -194,7 +242,7 @@ export default async function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
           </div>
 
@@ -230,6 +278,45 @@ export default async function DashboardPage() {
               className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition-colors"
             >
               Ask Assistant <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {/* AI Automation Widget */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Activity className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">AI Automation</h3>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-center text-xs font-bold pb-2 border-b border-border">
+                <span className="text-muted-foreground">Pending Proposals</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] ${data.automationStats.pendingCount > 0 ? 'text-amber-500 bg-amber-500/10 font-extrabold animate-pulse' : 'text-muted-foreground bg-secondary font-semibold'}`}>
+                  {data.automationStats.pendingCount}
+                </span>
+              </div>
+              
+              <div className="space-y-2">
+                {data.automationStats.recentLogs.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground font-semibold italic">No recent execution logs.</p>
+                ) : (
+                  data.automationStats.recentLogs.map((log: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground">
+                      <span className="truncate max-w-[150px]">• {log.step_name}</span>
+                      <span className={log.status === 'SUCCESS' ? 'text-emerald-500' : 'text-red-500'}>{log.status}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <Link 
+              href="/automation" 
+              className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition-colors"
+            >
+              Open Action Center <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
 

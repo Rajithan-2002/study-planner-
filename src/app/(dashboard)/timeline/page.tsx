@@ -1,13 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getCurrentUserId } from '@/utils/supabase/server'
 import { TimelineView } from '@/components/timeline/TimelineView'
 
 export default async function TimelinePage() {
   const supabase = await createClient()
-  const userId = process.env.DEV_USER_ID
-
-  if (!userId) {
-    throw new Error('DEV_USER_ID is not configured in environment')
-  }
+  const userId = await getCurrentUserId()
 
   // Fetch life events for the user
   const { data: events } = await supabase
@@ -15,6 +11,13 @@ export default async function TimelinePage() {
     .select('*')
     .eq('user_id', userId)
     .order('event_date', { ascending: true })
+
+  // Fetch tasks for the user
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('due_date', { ascending: true })
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-20 md:pb-0">
@@ -30,7 +33,7 @@ export default async function TimelinePage() {
       </div>
 
       {/* TIMELINE CLIENT VIEWER */}
-      <TimelineView initialEvents={events || []} />
+      <TimelineView initialEvents={events || []} initialTasks={tasks || []} />
 
     </div>
   )

@@ -128,6 +128,38 @@ export function NewCertDialog({
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="estimated_total_hours" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Estimated Total Hours
+                </label>
+                <input
+                  id="estimated_total_hours"
+                  name="estimated_total_hours"
+                  type="number"
+                  min="0"
+                  defaultValue="0"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="difficulty" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Difficulty
+                </label>
+                <select
+                  id="difficulty"
+                  name="difficulty"
+                  defaultValue="MEDIUM"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
+                >
+                  <option value="EASY">EASY</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HARD">HARD</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="notes" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Notes (Optional)
