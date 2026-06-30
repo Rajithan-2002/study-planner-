@@ -995,7 +995,6 @@ export async function seedMasterCurriculum() {
     const { data, error } = await supabase.from('curriculum_modules').insert(curriculum).select()
 
     if (error) throw error
-    revalidatePath('/academic/roadmap')
     return { success: true, count: data.length }
   } catch (err: any) {
     console.error('seedMasterCurriculum error:', err)

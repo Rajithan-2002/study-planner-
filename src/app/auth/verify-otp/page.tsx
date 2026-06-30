@@ -12,7 +12,7 @@ function VerifyOtpContent() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email') ?? ''
 
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -41,12 +41,12 @@ function VerifyOtpContent() {
     setOtp(newOtp)
 
     // Auto-advance
-    if (digit && index < 5) {
+    if (digit && index < 7) {
       inputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-submit when all 6 digits entered
-    if (digit && index === 5 && newOtp.every(d => d !== '')) {
+    // Auto-submit when all 8 digits entered
+    if (digit && index === 7 && newOtp.every(d => d !== '')) {
       submitOtp(newOtp.join(''))
     }
   }
@@ -59,11 +59,14 @@ function VerifyOtpContent() {
 
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault()
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (pasted.length === 6) {
-      const newOtp = pasted.split('')
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '')
+    if (pasted.length === 6 || pasted.length === 8) {
+      const newOtp = [...otp]
+      for (let i = 0; i < pasted.length; i++) {
+        newOtp[i] = pasted[i]
+      }
       setOtp(newOtp)
-      inputRefs.current[5]?.focus()
+      inputRefs.current[pasted.length - 1]?.focus()
       submitOtp(pasted)
     }
   }
@@ -180,7 +183,7 @@ function VerifyOtpContent() {
         id="verify-otp-btn"
         type="button"
         onClick={() => submitOtp(otp.join(''))}
-        disabled={loading || otp.some(d => !d)}
+        disabled={loading || (otp.filter(Boolean).length !== 6 && otp.filter(Boolean).length !== 8)}
         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-blue-600/25 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
