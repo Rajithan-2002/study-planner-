@@ -394,8 +394,16 @@ export const add_timetable_schedule = tool({
     })).describe('Array of class sessions extracted from timetable')
   }),
   execute: async ({ sessions }: any) => {
-    await logToolUsage('add_timetable_schedule', { count: sessions?.length }, { success: true })
-    return { success: true, sessions_count: sessions?.length }
+    try {
+      const { importTimetableSchedule } = await import('@/app/actions/academic')
+      const res = await importTimetableSchedule(sessions)
+      await logToolUsage('add_timetable_schedule', { count: sessions?.length }, { success: res.success })
+      return res
+    } catch (e: any) {
+      console.error('add_timetable_schedule tool execution failed:', e)
+      await logToolUsage('add_timetable_schedule', { count: sessions?.length }, { success: false, error: e.message })
+      return { success: false, error: e.message }
+    }
   }
 } as any)
 

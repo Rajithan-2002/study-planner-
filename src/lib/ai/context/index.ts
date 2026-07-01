@@ -87,6 +87,23 @@ export class ContextBudgetManager {
         }
       }
 
+      // Fallback for tomorrowClasses if database sessions are empty
+      if (tomorrowClasses.length === 0) {
+        const { data: user } = await supabase.from('users').select('degree_name').eq('id', userId).maybeSingle()
+        const { getTimetableForDegree } = await import('@/lib/academic/timetable-data')
+        const masterTimetable = getTimetableForDegree(user?.degree_name)
+        tomorrowClasses = masterTimetable
+          .filter(m => m.day === tomorrowStr)
+          .map((item, index) => ({
+            id: `master-tomorrow-${index}`,
+            start_time: item.start_time,
+            end_time: item.end_time,
+            location: item.location,
+            session_type: item.session_type,
+            module: { code: item.code, name: item.name }
+          }))
+      }
+
       context.scheduler = {
         todayAgenda: dailyPlan.allocations || [],
         tomorrowPlanDate: tomorrowDateStr,

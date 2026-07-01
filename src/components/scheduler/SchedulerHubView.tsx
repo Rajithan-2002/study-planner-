@@ -5,6 +5,7 @@ import { Calendar, Clock, AlertTriangle, CheckCircle2, Plus, Sparkles, Settings,
 import { createTimeBlock, updateTimeBlock, deleteTimeBlock, toggleTimeBlockStatus, saveSchedulerPreferences, proposeDailyPlan, acceptDailyPlan, postponeTimeBlock } from '@/app/actions/scheduler'
 import { calculateWorkload } from '@/lib/scheduler/engine'
 import { useRouter } from 'next/navigation'
+import { formatHours } from '@/utils/format'
 
 interface SchedulerHubViewProps {
   todaysClasses: any[]
@@ -162,18 +163,18 @@ export function SchedulerHubView({
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850">
               <span className="text-[10px] text-slate-400 block font-bold uppercase">Study Hours</span>
-              <span className="text-xl font-black text-slate-900 dark:text-white mt-1">{workload.studyHours}h</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white mt-1">{formatHours(workload.studyHours)}</span>
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850">
               <span className="text-[10px] text-slate-400 block font-bold uppercase">Project Hours</span>
-              <span className="text-xl font-black text-slate-900 dark:text-white mt-1">{workload.projectHours}h</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white mt-1">{formatHours(workload.projectHours)}</span>
             </div>
           </div>
 
           <div className="flex justify-between items-center p-3 rounded-2xl border border-transparent font-bold text-xs bg-slate-50 dark:bg-slate-950">
             <span className="text-slate-500">Scheduler Health:</span>
             <span className={`px-2.5 py-0.5 rounded border text-[10px] uppercase font-black ${workloadZoneColors[workload.zone]}`}>
-              {workload.zone} ZONE ({workload.totalHours}h)
+              {workload.zone} ZONE ({formatHours(workload.totalHours)})
             </span>
           </div>
         </div>

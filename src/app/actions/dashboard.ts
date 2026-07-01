@@ -9,7 +9,7 @@ function calculateUrgency(targetDate: string | null): number {
   const target = new Date(targetDate)
   const diffTime = target.getTime() - now.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays < 0) return 100 // Overdue
   if (diffDays === 0) return 95 // Today
   if (diffDays <= 3) return 80
@@ -63,7 +63,7 @@ export async function getDashboardData() {
     // 3. Today's Classes Timetable
     const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' })
     let todaysClasses: any[] = []
-    
+
     const ongoingModuleIds = modules.filter(m => m.status === 'ONGOING').map(m => m.id)
     if (ongoingModuleIds.length > 0) {
       const { data: sessions } = await supabase
@@ -71,7 +71,7 @@ export async function getDashboardData() {
         .select('*')
         .in('module_id', ongoingModuleIds)
         .eq('day', todayStr)
-        
+
       todaysClasses = (sessions || []).map(session => ({
         ...session,
         module: modules.find(m => m.id === session.module_id)
@@ -128,7 +128,7 @@ export async function getDashboardData() {
     const creditsCompleted = modules
       .filter(m => m.status === 'COMPLETED')
       .reduce((sum, m) => sum + (m.credits || 0), 0)
-    
+
     // Calculate Highest Risk Module based on ongoing assignments
     let highestRiskModule = 'None'
     const ongoingModules = modules.filter(m => m.status === 'ONGOING')
@@ -143,7 +143,7 @@ export async function getDashboardData() {
 
     // 8. Certification Stats
     const activeCerts = certs.filter(c => c.status === 'ACTIVE')
-    
+
     // Find next exam date
     let nextExamCert: any = null
     let minDiff = Infinity
@@ -185,20 +185,18 @@ export async function getDashboardData() {
     const { PlanningCapacityEngine } = await import('@/lib/planning/engine')
     const remainingWorkItems = await PlanningCapacityEngine.calculateRemainingWork(userId)
     const activePlanningItems = remainingWorkItems.filter(i => i.remaining_hours > 0)
-    
+
     const totalRemainingHours = activePlanningItems.reduce((sum, i) => sum + i.remaining_hours, 0)
     const totalEstimatedHours = activePlanningItems.reduce((sum, i) => sum + i.estimated_total_hours, 0)
-    
+
     const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
-    const hours = Math.floor(dailyPlan.totalPlannedMinutes / 60)
-    const minutes = dailyPlan.totalPlannedMinutes % 60
-    const todayRecommendedHours = `${hours}h ${minutes}m`
-    
+    const todayRecommendedHours = Math.round((dailyPlan.totalPlannedMinutes / 60) * 10) / 10
+
     const capacities = await PlanningCapacityEngine.getCapacityPreferences(userId)
-    const weeklyCapacityHours = 
+    const weeklyCapacityHours =
       capacities.monday_hours + capacities.tuesday_hours + capacities.wednesday_hours +
       capacities.thursday_hours + capacities.friday_hours + capacities.saturday_hours + capacities.sunday_hours
-    
+
     const conflicts = await PlanningCapacityEngine.detectCapacityConflicts(userId)
     const planningHealth = conflicts.length > 0 ? Math.max(20, 100 - conflicts.length * 30) : 100
 
