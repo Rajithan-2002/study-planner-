@@ -56,8 +56,8 @@ export class DecisionIntelligenceEngine {
     const recommendations: RecommendationItem[] = []
 
     // ---- RISKS ENGINE ----
-    const gpa = context.academic?.gpa ? Number(context.academic.gpa) : 3.8
-    if (gpa < 3.2) {
+    const gpa = context.academic?.gpa ? Number(context.academic.gpa) : null
+    if (gpa !== null && gpa < 3.2) {
       risks.push({
         domain: 'ACADEMIC',
         score: 8.5,
@@ -90,13 +90,15 @@ export class DecisionIntelligenceEngine {
     }
 
     // ---- GOAL EVALUATOR ----
-    goals.push({
-      name: 'Cumulative GPA Target',
-      targetValue: 3.8,
-      currentValue: gpa,
-      progressPercentage: Math.min(100, Math.round((gpa / 3.8) * 100)),
-      deviation: Math.round((gpa - 3.8) * 100) / 100
-    })
+    if (gpa !== null) {
+      goals.push({
+        name: 'Cumulative GPA Target',
+        targetValue: 3.8,
+        currentValue: gpa,
+        progressPercentage: Math.min(100, Math.round((gpa / 3.8) * 100)),
+        deviation: Math.round((gpa - 3.8) * 100) / 100
+      })
+    }
 
     // ---- RECOMMENDATION GENERATOR ----
     const academicRec: RecommendationItem = {

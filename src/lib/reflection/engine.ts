@@ -9,15 +9,17 @@ export class ReflectionEngine {
 
     // Analyze GPA trends
     const { data: profile } = await supabase.from('users').select('current_gpa').eq('id', userId).single()
-    const gpa = profile?.current_gpa ? Number(profile.current_gpa) : 3.8
-
-    if (gpa >= 3.7) {
-      reflections.push({
-        userId,
-        reflectionType: 'ACHIEVEMENT_RECOGNITION',
-        title: 'Academic Honor Standing',
-        content: `Your current GPA of ${gpa} maintains an Dean's List honors trajectory across active semesters.`
-      })
+    
+    if (profile?.current_gpa !== null && profile?.current_gpa !== undefined) {
+      const gpa = Number(profile.current_gpa)
+      if (gpa >= 3.7) {
+        reflections.push({
+          userId,
+          reflectionType: 'ACHIEVEMENT_RECOGNITION',
+          title: 'Academic Honor Standing',
+          content: `Your current GPA of ${gpa} maintains an Dean's List honors trajectory across active semesters.`
+        })
+      }
     }
 
     // Analyze active certifications

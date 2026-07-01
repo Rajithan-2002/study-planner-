@@ -12,8 +12,11 @@ export class DecisionPlatformEngine implements IPlatformEngine {
       // Fetch context data across all domains statically
       const { data: userProfile } = await supabase.from('users').select('*').eq('id', userId).single()
       const { data: activeSemesters } = await supabase.from('academic_semesters').select('id').eq('user_id', userId)
-      
-      let academicGpa = 3.8
+      let academicGpa: number | null = null
+      if (userProfile?.current_gpa !== null && userProfile?.current_gpa !== undefined) {
+        academicGpa = Number(userProfile.current_gpa)
+      }
+
       let ongoingModulesCount = 0
       if (activeSemesters && activeSemesters.length > 0) {
         const { data: modules } = await supabase
@@ -22,10 +25,6 @@ export class DecisionPlatformEngine implements IPlatformEngine {
           .in('semester_id', activeSemesters.map(s => s.id))
           .eq('status', 'ONGOING')
         ongoingModulesCount = modules?.length || 0
-      }
-
-      if (userProfile?.current_gpa) {
-        academicGpa = Number(userProfile.current_gpa)
       }
 
       const { data: certs } = await supabase.from('certifications').select('*').eq('user_id', userId).eq('status', 'ACTIVE')

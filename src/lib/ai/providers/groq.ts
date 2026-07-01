@@ -82,8 +82,8 @@ export class GroqProvider implements ProviderInterface {
 **Status**: Completed. All dependent planning projections have rebalanced. [Actions Engine]`
       }
     } else if (session.capability === 'ACADEMIC_AUDIT') {
-      const gpa = session.context.academic?.gpa || '3.8'
-      answer = `Based on your academic profile, your cumulative GPA is **${gpa}**. You have ${session.context.academic?.ongoingModulesCount || 3} ongoing modules in your dashboard. [Academic Engine]`
+      const gpa = session.context.academic?.gpa || 'Not Set'
+      answer = `Based on your academic profile, your cumulative GPA is **${gpa}**. You have ${session.context.academic?.ongoingModulesCount || 0} ongoing modules in your dashboard. [Academic Engine]`
     } else if (session.capability === 'TIME_MANAGEMENT' || session.intent === 'TASKS') {
       const cleanTitle = session.context.raw_query.replace(/^(add to task|add task|create task|todo|->)\s*/i, '')
         .replace(/^->\s*/i, '')
