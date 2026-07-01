@@ -1,13 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getCurrentUserId } from '@/utils/supabase/server'
 import { KnowledgeHubView } from '@/components/knowledge/KnowledgeHubView'
 
 export default async function KnowledgeHubPage() {
   const supabase = await createClient()
-  const userId = process.env.DEV_USER_ID
-
-  if (!userId) {
-    throw new Error('DEV_USER_ID is not configured in environment')
-  }
+  const userId = await getCurrentUserId()
 
   // Fetch knowledge files for this user
   const { data: files } = await supabase
@@ -29,6 +25,35 @@ export default async function KnowledgeHubPage() {
     .select('*')
     .eq('user_id', userId)
 
+  // Fetch academic modules for relationships
+  const { data: modules } = await supabase
+    .from('modules')
+    .select('id, code, name')
+    .eq('user_id', userId)
+
+  // Fetch projects for relationships
+  const { data: projects } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('user_id', userId)
+
+  // Fetch certifications for relationships
+  const { data: certifications } = await supabase
+    .from('certifications')
+    .select('id, name')
+    .eq('user_id', userId)
+
+  // Fetch all chunks
+  const { data: chunks } = await supabase
+    .from('knowledge_chunks')
+    .select('*')
+    .order('chunk_number', { ascending: true })
+
+  // Fetch all relationships
+  const { data: relationships } = await supabase
+    .from('platform_relationships')
+    .select('*')
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-20 md:pb-0">
       
@@ -46,7 +71,12 @@ export default async function KnowledgeHubPage() {
       <KnowledgeHubView 
         initialFiles={files || []} 
         initialNotes={notes || []} 
-        domains={domains || []} 
+        domains={domains || []}
+        modules={modules || []}
+        projects={projects || []}
+        certifications={certifications || []}
+        chunks={chunks || []}
+        relationships={relationships || []}
       />
 
     </div>

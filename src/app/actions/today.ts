@@ -1,33 +1,75 @@
 'use server'
 
-import { createClient, getCurrentUserId, logActivity } from '@/utils/supabase/server'
+import { createClient, getCurrentUserId } from '@/utils/supabase/server'
+import { MASTER_MIT_SEMESTER_2_TIMETABLE, getTimetableForDegree } from '@/lib/academic/timetable-data'
 
 export async function getTodayCommandCenterData() {
   try {
     const supabase = await createClient()
     const userId = await getCurrentUserId()
 
-    const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+    const { data: user } = await supabase.from('users').select('degree_name').eq('id', userId).maybeSingle()
+    const masterTimetable = getTimetableForDegree(user?.degree_name)
+
     const now = new Date()
+    const todayStr = now.toLocaleDateString('en-US', { weekday: 'long' })
+    const tomorrow = new Date(now.getTime() + (24 * 60 * 60 * 1000))
+    const tomorrowStr = tomorrow.toLocaleDateString('en-US', { weekday: 'long' })
+    const dateStr = now.toISOString().split('T')[0]
     
     // 48 hours from now for immediate deadlines
     const next48Hours = new Date(now.getTime() + (48 * 60 * 60 * 1000))
 
-    // 1. Fetch Today's Classes
+    // 1. Fetch Today's & Tomorrow's Classes
     const { data: activeSemesters } = await supabase.from('academic_semesters').select('id').eq('user_id', userId)
     let todaysClasses: any[] = []
+    let tomorrowsClasses: any[] = []
+
     if (activeSemesters && activeSemesters.length > 0) {
-      const { data: modules } = await supabase.from('modules').select('id, name, code').in('semester_id', activeSemesters.map(s => s.id)).eq('status', 'ONGOING').eq('user_id', userId)
+      const { data: modules } = await supabase.from('modules').select('id, name, code').in('semester_id', activeSemesters.map(s => s.id)).eq('user_id', userId)
       if (modules && modules.length > 0) {
-        const { data: sessions } = await supabase.from('timetable_sessions').select('*').in('module_id', modules.map(m => m.id)).eq('day', todayStr)
-        todaysClasses = (sessions || []).map(session => ({
+        const { data: sessionsToday } = await supabase.from('timetable_sessions').select('*').in('module_id', modules.map(m => m.id)).eq('day', todayStr)
+        todaysClasses = (sessionsToday || []).map(session => ({
           ...session,
-          module: modules.find(m => m.id === session.module_id)
-        })).sort((a, b) => a.start_time.localeCompare(b.start_time))
+          module: modules.find(m => m.id === session.module_id) || { name: session.code, code: session.code }
+        })).sort((a: any, b: any) => a.start_time.localeCompare(b.start_time))
+
+        const { data: sessionsTomorrow } = await supabase.from('timetable_sessions').select('*').in('module_id', modules.map(m => m.id)).eq('day', tomorrowStr)
+        tomorrowsClasses = (sessionsTomorrow || []).map(session => ({
+          ...session,
+          module: modules.find(m => m.id === session.module_id) || { name: session.code, code: session.code }
+        })).sort((a: any, b: any) => a.start_time.localeCompare(b.start_time))
       }
     }
 
-    // 2. Fetch Tasks (Due today, overdue, or upcoming)
+    // Fallback to Master Timetable filtered by Degree track if database sessions are empty
+    if (todaysClasses.length === 0) {
+      todaysClasses = masterTimetable.filter(m => m.day === todayStr).map((item, index) => ({
+        id: `master-today-${index}`,
+        day: item.day,
+        start_time: item.start_time,
+        end_time: item.end_time,
+        location: item.location,
+        session_type: item.session_type,
+        lecturer: item.lecturer,
+        module: { code: item.code, name: item.name }
+      }))
+    }
+
+    if (tomorrowsClasses.length === 0) {
+      tomorrowsClasses = masterTimetable.filter(m => m.day === tomorrowStr).map((item, index) => ({
+        id: `master-tomorrow-${index}`,
+        day: item.day,
+        start_time: item.start_time,
+        end_time: item.end_time,
+        location: item.location,
+        session_type: item.session_type,
+        lecturer: item.lecturer,
+        module: { code: item.code, name: item.name }
+      }))
+    }
+
+    // 2. Fetch Tasks
     const { data: allTasks } = await supabase.from('tasks').select('*').eq('user_id', userId).neq('status', 'COMPLETED')
     
     const tasks = {
@@ -77,101 +119,75 @@ export async function getTodayCommandCenterData() {
       }
     })
 
-    // 4. Study Blocks based on upcoming exams (from module workspace planner logic)
-    const studyBlocks: any[] = []
-    // Filter exams by modules belonging to user
-    const { data: userModules } = await supabase.from('modules').select('id, name, code').eq('user_id', userId)
-    
-    if (userModules && userModules.length > 0) {
-      const { data: upcomingExams } = await supabase
-        .from('exams')
-        .select('*')
-        .in('module_id', userModules.map(m => m.id))
-        .gte('exam_date', now.toISOString())
-        .order('exam_date', { ascending: true })
-        .limit(2)
-      
-      if (upcomingExams && upcomingExams.length > 0) {
-        upcomingExams.forEach(exam => {
-          const mod = userModules.find(m => m.id === exam.module_id)
-          if (mod) {
-            const progress = Math.min((exam.weight || 0) * 1.5, 100); 
-            const hours = Math.max(1, Math.round((100 - progress) / 20));
-            studyBlocks.push({
-              moduleId: mod.id,
-              moduleName: mod.name,
-              moduleCode: mod.code,
-              examName: exam.name,
-              hours: hours,
-              progress: progress
-            })
-          }
-        })
-      }
-    }
+    // 4. Time Blocks
+    const { data: timeBlocks } = await supabase
+      .from('time_blocks')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('scheduled_at', `${dateStr}T00:00:00Z`)
+      .lte('scheduled_at', `${dateStr}T23:59:59Z`)
+      .order('scheduled_at', { ascending: true })
 
-    // 5. Fetch Completed Study Sessions for Today (Defensively)
-    let todaySessionsCount = 0
-    try {
-      const startOfToday = new Date()
-      startOfToday.setHours(0,0,0,0)
-      const { data: todaySessions, error: err } = await supabase
-        .from('study_sessions')
-        .select('id')
-        .eq('user_id', userId)
-        .gte('created_at', startOfToday.toISOString())
-      
-      if (!err && todaySessions) {
-        todaySessionsCount = todaySessions.length
-      }
-    } catch (e) {
-      console.warn('Could not query study_sessions.', e)
-    }
+    // 5. Scheduler Preferences
+    const { data: preferences } = await supabase
+      .from('user_schedule_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    // 6. Conflicts
+    const { data: conflicts } = await supabase
+      .from('schedule_conflicts')
+      .select('*')
+      .eq('user_id', userId)
+
+    // 7. Proposed Plans
+    const { data: proposedPlans } = await supabase
+      .from('generated_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('plan_date', dateStr)
+      .eq('status', 'PROPOSED')
 
     return {
       todaysClasses,
+      tomorrowsClasses,
       tasks,
       immediateDeadlines: immediateDeadlines.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-      studyBlocks,
-      todaySessionsCount
+      timeBlocks: timeBlocks || [],
+      preferences: preferences || {
+        preferred_focus_time: 'MORNING',
+        max_daily_study_hours: 4.0,
+        max_daily_project_hours: 3.0,
+        buffer_minutes: 10,
+        sleep_start_time: '23:00',
+        sleep_end_time: '07:00',
+        work_start_time: '08:00',
+        work_end_time: '18:00'
+      },
+      conflicts: conflicts || [],
+      proposedPlan: proposedPlans && proposedPlans.length > 0 ? proposedPlans[0] : null
     }
   } catch (err: any) {
     console.error('getTodayCommandCenterData exception:', err)
     return {
       todaysClasses: [],
+      tomorrowsClasses: [],
       tasks: { critical: [], important: [], optional: [] },
       immediateDeadlines: [],
-      studyBlocks: [],
-      todaySessionsCount: 0
+      timeBlocks: [],
+      preferences: {
+        preferred_focus_time: 'MORNING',
+        max_daily_study_hours: 4.0,
+        max_daily_project_hours: 3.0,
+        buffer_minutes: 10,
+        sleep_start_time: '23:00',
+        sleep_end_time: '07:00',
+        work_start_time: '08:00',
+        work_end_time: '18:00'
+      },
+      conflicts: [],
+      proposedPlan: null
     }
-  }
-}
-
-export async function saveStudySession(moduleId: string | null, durationMinutes: number) {
-  try {
-    const supabase = await createClient()
-    const userId = await getCurrentUserId()
-
-    const { data, error } = await supabase
-      .from('study_sessions')
-      .insert({
-        user_id: userId,
-        module_id: moduleId || null,
-        duration_minutes: durationMinutes
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error inserting study session:', error.message)
-      return { success: false, error: error.message }
-    }
-
-    await logActivity('LOG_STUDY_SESSION', 'STUDY_SESSION', data.id)
-
-    return { success: true, data }
-  } catch (e: any) {
-    console.error('Study session insert exception:', e)
-    return { success: false, error: e.message || 'Unknown database error' }
   }
 }

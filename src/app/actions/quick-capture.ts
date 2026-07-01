@@ -189,3 +189,109 @@ export async function updateNote(id: string, title: string, content: string, dom
     return { success: false, error: err.message || 'Server error occurred' }
   }
 }
+
+export async function archiveNoteAction(id: string) {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    // Try proper database archiving
+    const { data, error } = await supabase
+      .from('notes')
+      .update({
+        is_archived: true,
+        archived_at: new Date().toISOString(),
+        archived_by: userId
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+
+    if (error) {
+      // If column doesn't exist, fallback to tag-based archiving
+      if (error.code === '42703') { 
+        console.warn('is_archived column not found, falling back to tag-based archiving');
+        const { data: note } = await supabase.from('notes').select('tags').eq('id', id).single();
+        const currentTags = note?.tags || [];
+        const nextTags = currentTags.includes('archived') ? currentTags : [...currentTags, 'archived'];
+        const { data: fallbackData } = await supabase
+          .from('notes')
+          .update({ tags: nextTags })
+          .eq('id', id)
+          .select()
+        revalidatePath('/knowledge')
+        return { success: true, data: fallbackData, fallback: true }
+      }
+      throw new Error(error.message)
+    }
+
+    revalidatePath('/knowledge')
+    revalidatePath('/')
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('archiveNoteAction exception:', err)
+    return { success: false, error: err.message || 'Server error occurred' }
+  }
+}
+
+export async function restoreNoteAction(id: string) {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    const { data, error } = await supabase
+      .from('notes')
+      .update({
+        is_archived: false,
+        archived_at: null,
+        archived_by: null
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+
+    if (error) {
+      if (error.code === '42703') { 
+        console.warn('is_archived column not found, falling back to tag-based restore');
+        const { data: note } = await supabase.from('notes').select('tags').eq('id', id).single();
+        const currentTags = note?.tags || [];
+        const nextTags = currentTags.filter((t: string) => t !== 'archived');
+        const { data: fallbackData } = await supabase
+          .from('notes')
+          .update({ tags: nextTags })
+          .eq('id', id)
+          .select()
+        revalidatePath('/knowledge')
+        return { success: true, data: fallbackData, fallback: true }
+      }
+      throw new Error(error.message)
+    }
+
+    revalidatePath('/knowledge')
+    revalidatePath('/')
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('restoreNoteAction exception:', err)
+    return { success: false, error: err.message || 'Server error occurred' }
+  }
+}
+
+export async function aiQuickCaptureAction(text: string) {
+  try {
+    const userId = await getCurrentUserId()
+    const { AIWorkflowEngine } = await import('@/lib/ai/workflow')
+    const response = await AIWorkflowEngine.runWorkflow(userId, text, undefined, true)
+    
+    revalidatePath('/')
+    revalidatePath('/today')
+    revalidatePath('/inbox')
+    revalidatePath('/projects')
+    revalidatePath('/certifications')
+    
+    return { success: true, message: response.answer }
+  } catch (err: any) {
+    console.error('aiQuickCaptureAction exception:', err)
+    return { success: false, error: err.message || 'Failed to capture' }
+  }
+}
+

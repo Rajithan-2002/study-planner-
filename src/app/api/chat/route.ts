@@ -1,7 +1,8 @@
 import { createGroq } from '@ai-sdk/groq'
+import { createOpenAI } from '@ai-sdk/openai'
 import { streamText, convertToModelMessages, stepCountIs } from 'ai'
 import { createClient, getCurrentUserId } from '@/utils/supabase/server'
-import { generateSystemPrompt } from '@/lib/ai/prompt'
+import { generateSystemPrompt } from '@/lib/ai/prompt/index'
 import {
   get_today_focus,
   get_projects,
@@ -14,7 +15,9 @@ import {
   recommend_next_action,
   process_inbox_item,
   create_task,
-  create_life_event
+  create_life_event,
+  add_timetable_schedule,
+  get_notes
 } from '@/lib/ai/tools'
 
 // Rate limit helper (Simple Memory Store for basic reliability check)
@@ -65,18 +68,22 @@ export async function POST(req: Request) {
       })
     }
 
-    // 3. API Key Validation
-    if (!process.env.GROQ_API_KEY) {
-      console.error('Server Configuration Error: GROQ_API_KEY is not defined.')
-      return new Response(JSON.stringify({ error: 'LLM Service is not configured on the server.' }), {
+    // 3. Model & Provider Selection
+    let modelInstance: any = null
+
+    if (process.env.OPENAI_API_KEY) {
+      const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      modelInstance = openai('gpt-4o-mini')
+    } else if (process.env.GROQ_API_KEY) {
+      const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
+      modelInstance = groq('llama-3.3-70b-versatile')
+    } else {
+      console.error('Server Configuration Error: Neither OPENAI_API_KEY nor GROQ_API_KEY is defined.')
+      return new Response(JSON.stringify({ error: 'LLM Service API key is not configured on the server.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       })
     }
-
-    const groq = createGroq({
-      apiKey: process.env.GROQ_API_KEY,
-    })
 
     // Convert client messages to model messages
     const modelMessages = await convertToModelMessages(messages)
@@ -99,13 +106,13 @@ export async function POST(req: Request) {
     // Generate strict system prompt
     const systemPrompt = generateSystemPrompt(user)
 
-    // 4. Timeout Race (Timeout after 20 seconds)
+    // 4. Timeout Race (Timeout after 30 seconds)
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('LLM Response Timeout')), 20000)
+      setTimeout(() => reject(new Error('LLM Response Timeout')), 30000)
     )
 
     const streamPromise = streamText({
-      model: groq('llama-3.3-70b-versatile'),
+      model: modelInstance,
       system: systemPrompt,
       messages: modelMessages,
       stopWhen: stepCountIs(5),
@@ -121,7 +128,9 @@ export async function POST(req: Request) {
         recommend_next_action,
         process_inbox_item,
         create_task,
-        create_life_event
+        create_life_event,
+        add_timetable_schedule,
+        get_notes
       } as any
     })
 

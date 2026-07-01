@@ -42,18 +42,23 @@ export async function getDashboardData() {
       .eq('id', userId)
       .single()
 
-    // 2. Fetch all modules, projects, certifications, tasks, events
+    // 2. Fetch all modules, projects, certifications, tasks, events, curriculum, milestones
     const { data: allModules } = await supabase.from('modules').select('*').eq('user_id', userId)
     const { data: allProjects } = await supabase.from('projects').select('*').eq('user_id', userId)
     const { data: allCerts } = await supabase.from('certifications').select('*').eq('user_id', userId)
     const { data: allTasks } = await supabase.from('tasks').select('*').eq('user_id', userId)
     const { data: allEvents } = await supabase.from('life_events').select('*').eq('user_id', userId)
+    const { data: curriculum } = await supabase.from('curriculum_modules').select('credits')
+    const { data: allMilestones } = await supabase.from('project_milestones').select('*')
 
     const modules = allModules || []
     const projects = allProjects || []
     const certs = allCerts || []
     const tasks = allTasks || []
     const events = allEvents || []
+    const milestones = allMilestones || []
+    const catalogTotalCredits = (curriculum || []).reduce((sum, m) => sum + (m.credits || 0), 0)
+    const creditsTotal = catalogTotalCredits > 0 ? catalogTotalCredits : 120
 
     // 3. Today's Classes Timetable
     const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' })
@@ -132,29 +137,9 @@ export async function getDashboardData() {
       highestRiskModule = criticalModule ? criticalModule.code : (ongoingModules[0]?.code || 'None')
     }
 
-    // 7. Projects Stats
-    const activeProjects = projects.filter(p => p.status === 'ACTIVE')
-    
-    // Overdue Projects are those with active status that have overdue tasks
-    const overdueProjectsCount = activeProjects.filter(proj => {
-      const projTasks = tasks.filter(t => t.related_entity_type === 'PROJECT' && t.related_entity_id === proj.id)
-      return projTasks.some(t => t.status !== 'COMPLETED' && t.due_date && new Date(t.due_date) < new Date())
-    }).length
-
-    // Calculate Health Score for Active Projects
-    let totalHealth = 0
-    if (activeProjects.length > 0) {
-      activeProjects.forEach(proj => {
-        const projTasks = tasks.filter(t => t.related_entity_type === 'PROJECT' && t.related_entity_id === proj.id)
-        if (projTasks.length === 0) {
-          totalHealth += 100
-        } else {
-          const completed = projTasks.filter(t => t.status === 'COMPLETED').length
-          totalHealth += (completed / projTasks.length) * 100
-        }
-      })
-    }
-    const projectHealthScore = activeProjects.length > 0 ? Math.round(totalHealth / activeProjects.length) : 100
+    // 7. Projects Stats via Platform Dashboard Aggregator
+    const { DashboardAggregator } = await import('@/lib/platform/dashboard/dashboard-aggregator')
+    const snapshot = await DashboardAggregator.getSnapshot(userId)
 
     // 8. Certification Stats
     const activeCerts = certs.filter(c => c.status === 'ACTIVE')
@@ -196,50 +181,67 @@ export async function getDashboardData() {
     }
     const readinessScore = activeCerts.length > 0 ? Math.round(totalReadiness / activeCerts.length) : 0
 
-    // 9. Real Heat Map using study_sessions for the current week (Monday-Friday)
-    const startOfWeek = new Date()
-    const currentDay = startOfWeek.getDay()
-    const diffDays = startOfWeek.getDate() - currentDay + (currentDay === 0 ? -6 : 1) // Adjust to Monday
-    startOfWeek.setDate(diffDays)
-    startOfWeek.setHours(0, 0, 0, 0)
+    // 9. Load Planning Capacity metrics
+    const { PlanningCapacityEngine } = await import('@/lib/planning/engine')
+    const remainingWorkItems = await PlanningCapacityEngine.calculateRemainingWork(userId)
+    const activePlanningItems = remainingWorkItems.filter(i => i.remaining_hours > 0)
     
-    const endOfWeek = new Date(startOfWeek.getTime())
-    endOfWeek.setDate(startOfWeek.getDate() + 4) // Friday
-    endOfWeek.setHours(23, 59, 59, 999)
+    const totalRemainingHours = activePlanningItems.reduce((sum, i) => sum + i.remaining_hours, 0)
+    const totalEstimatedHours = activePlanningItems.reduce((sum, i) => sum + i.estimated_total_hours, 0)
+    
+    const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
+    const todayRecommendedHours = Math.round((dailyPlan.totalPlannedMinutes / 60) * 10) / 10
+    
+    const capacities = await PlanningCapacityEngine.getCapacityPreferences(userId)
+    const weeklyCapacityHours = 
+      capacities.monday_hours + capacities.tuesday_hours + capacities.wednesday_hours +
+      capacities.thursday_hours + capacities.friday_hours + capacities.saturday_hours + capacities.sunday_hours
+    
+    const conflicts = await PlanningCapacityEngine.detectCapacityConflicts(userId)
+    const planningHealth = conflicts.length > 0 ? Math.max(20, 100 - conflicts.length * 30) : 100
 
-    const { data: weekSessions } = await supabase
-      .from('study_sessions')
-      .select('created_at')
-      .eq('user_id', userId)
-      .gte('created_at', startOfWeek.toISOString())
-      .lte('created_at', endOfWeek.toISOString())
-
-    const heatMapDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-    const heatMap = heatMapDays.map(dayStr => {
-      const count = (weekSessions || []).filter(s => {
-        const sDate = new Date(s.created_at)
-        const sDayStr = sDate.toLocaleDateString('en-US', { weekday: 'short' })
-        return sDayStr === dayStr
-      }).length
-      return { day: dayStr, count: Math.min(count, 5) }
+    let totalProbability = 0
+    let countWithDeadlines = 0
+    activePlanningItems.forEach(item => {
+      if (item.deadline) {
+        const daysLeft = Math.ceil((new Date(item.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        if (daysLeft > 0) {
+          totalProbability += PlanningCapacityEngine.estimateCompletionProbability(item.remaining_hours, daysLeft, weeklyCapacityHours)
+          countWithDeadlines++
+        }
+      }
     })
+    const averageCompletionProbability = countWithDeadlines > 0 ? Math.round(totalProbability / countWithDeadlines) : 95
+
+    // 10. Fetch pending actions count and recent logs summary
+    const { count: pendingActionsCount } = await supabase
+      .from('ai_actions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['WAITING_CONFIRMATION', 'PROPOSED'])
+
+    const { data: recentLogs } = await supabase
+      .from('action_execution_logs')
+      .select('step_name, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(3)
 
     return {
       todaysClasses,
       focusItems: focusItems.slice(0, 5),
       timelineEvents,
-      userProfile,
+      userProfile: snapshot.academic?.profile || userProfile,
       academicStats: {
-        currentGpa: userProfile?.current_gpa || 0,
-        targetGpa: userProfile?.target_gpa || 0,
+        currentGpa: snapshot.academic?.gpa ?? userProfile?.current_gpa ?? 0,
+        targetGpa: snapshot.academic?.profile?.target_gpa ?? userProfile?.target_gpa ?? 0,
         creditsCompleted,
-        creditsTotal: 120,
+        creditsTotal,
         highestRiskModule
       },
       projectStats: {
-        activeCount: activeProjects.length,
-        overdueCount: overdueProjectsCount,
-        healthScore: projectHealthScore
+        activeCount: snapshot.projects?.activeCount ?? 0,
+        overdueCount: snapshot.projects?.overdueCount ?? 0,
+        healthScore: snapshot.projects?.averageProgress ?? 100
       },
       certStats: {
         activeCount: activeCerts.length,
@@ -247,7 +249,20 @@ export async function getDashboardData() {
         nextExamDate: nextExamCert?.exam_date || null,
         readinessScore
       },
-      heatMap
+      automationStats: {
+        pendingCount: pendingActionsCount || 0,
+        recentLogs: recentLogs || []
+      },
+      planningStats: {
+        totalRemainingHours,
+        totalEstimatedHours,
+        todayRecommendedHours,
+        weeklyCapacityHours,
+        planningHealth,
+        averageCompletionProbability,
+        dailyPlanAllocations: dailyPlan.allocations,
+        conflicts
+      }
     }
   } catch (err: any) {
     console.error('getDashboardData exception:', err)
@@ -259,6 +274,7 @@ export async function getDashboardData() {
       academicStats: { currentGpa: 0, targetGpa: 0, creditsCompleted: 0, creditsTotal: 120, highestRiskModule: 'None' },
       projectStats: { activeCount: 0, overdueCount: 0, healthScore: 100 },
       certStats: { activeCount: 0, daysRemaining: null, nextExamDate: null, readinessScore: 0 },
+      automationStats: { pendingCount: 0, recentLogs: [] },
       heatMap: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => ({ day: d, count: 0 }))
     }
   }

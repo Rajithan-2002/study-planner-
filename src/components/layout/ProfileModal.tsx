@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { updateUserProfile } from '@/app/actions/profile'
-import { X, Loader2, User } from 'lucide-react'
+import { signOut } from '@/app/auth/actions'
+import { X, Loader2, User, LogOut } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -70,6 +71,7 @@ export function ProfileModal({
     startTransition(async () => {
       try {
         await updateUserProfile(formData)
+        window.dispatchEvent(new Event('profile-updated'))
         onUpdate()
         onClose()
       } catch (err: any) {
@@ -115,7 +117,7 @@ export function ProfileModal({
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Akhil Shetty"
+                placeholder="e.g. Your Name"
                 className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-transparent px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
               />
             </div>
@@ -138,17 +140,22 @@ export function ProfileModal({
               </div>
               <div>
                 <label htmlFor="degree_name" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Degree
+                  Degree Program *
                 </label>
-                <input
+                <select
                   id="degree_name"
                   name="degree_name"
-                  type="text"
                   value={degreeName}
                   onChange={(e) => setDegreeName(e.target.value)}
-                  placeholder="e.g. Computer Science"
-                  className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-transparent px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
-                />
+                  className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white cursor-pointer"
+                >
+                  <option value="BSc. Honours in Management and Information Technology (MIT)">
+                    MIT (Management & IT)
+                  </option>
+                  <option value="BSc. Honours in Information Technology (IT)">
+                    IT (Information Technology)
+                  </option>
+                </select>
               </div>
             </div>
 
@@ -203,41 +210,22 @@ export function ProfileModal({
             </div>
 
             {/* GPA Metrics */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="current_gpa" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Current GPA
-                </label>
-                <input
-                  id="current_gpa"
-                  name="current_gpa"
-                  type="number"
-                  step="0.01"
-                  min="0.00"
-                  max="10.00"
-                  value={currentGpa}
-                  onChange={(e) => setCurrentGpa(e.target.value)}
-                  placeholder="e.g. 8.24"
-                  className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-transparent px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
-                />
-              </div>
-              <div>
-                <label htmlFor="target_gpa" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Target GPA
-                </label>
-                <input
-                  id="target_gpa"
-                  name="target_gpa"
-                  type="number"
-                  step="0.01"
-                  min="0.00"
-                  max="10.00"
-                  value={targetGpa}
-                  onChange={(e) => setTargetGpa(e.target.value)}
-                  placeholder="e.g. 9.50"
-                  className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-transparent px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
-                />
-              </div>
+            <div>
+              <label htmlFor="current_gpa" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                Current GPA
+              </label>
+              <input
+                id="current_gpa"
+                name="current_gpa"
+                type="number"
+                step="0.01"
+                min="0.00"
+                max="10.00"
+                value={currentGpa}
+                onChange={(e) => setCurrentGpa(e.target.value)}
+                placeholder="e.g. 3.77"
+                className="w-full rounded-xl border border-slate-250 dark:border-slate-800 bg-transparent px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:text-white"
+              />
             </div>
 
             {/* Career Goal */}
@@ -257,23 +245,34 @@ export function ProfileModal({
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              onClick={async () => {
+                await signOut()
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              <LogOut className="h-3.5 w-3.5" /> Sign Out
             </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save Profile
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isPending}
+                className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex items-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Profile
+              </button>
+            </div>
           </div>
         </form>
       </div>
