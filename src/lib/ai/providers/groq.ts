@@ -88,7 +88,7 @@ export class GroqProvider implements ProviderInterface {
       const cleanTitle = session.context.raw_query.replace(/^(add to task|add task|create task|todo|->)\s*/i, '')
         .replace(/^->\s*/i, '')
         .trim()
-      answer = `Proposing new task: "**${cleanTitle || 'Dilani mam lecture preparation'}**". I have initialized a task proposal card. Click "Add to Life OS" below to confirm this task in your queue. [Tasks Engine]`
+      answer = `Proposing new task: "**${cleanTitle || 'Algorithms lecture preparation'}**". I have initialized a task proposal card. Click "Add to Life OS" below to confirm this task in your queue. [Tasks Engine]`
     } else if (session.capability === 'STUDY_PLANNING' || query.includes('workload') || query.includes('today')) {
       const hours = session.context.scheduler?.totalHours || '4.5'
       answer = `Today's dynamically computed flexible plan:
