@@ -48,10 +48,10 @@ export async function getAcademicProfile() {
         id: userId,
         full_name: 'Student User',
         email: 'student@studyplanner.com',
-        degree_name: 'Information Technology (MIT)',
-        university: 'University of Kelaniya',
+        degree_name: 'Computer Science (BSc)',
+        university: 'State University',
         graduation_year: 2028,
-        current_gpa: 3.77
+        current_gpa: 3.5
       }).select().maybeSingle()
       user = newUser
     }
@@ -77,9 +77,9 @@ export async function getAcademicProfile() {
 
     return {
       user: user || {
-        degree_name: 'Information Technology (MIT)',
-        university: 'University of Kelaniya',
-        current_gpa: 3.77
+        degree_name: 'Computer Science (BSc)',
+        university: 'State University',
+        current_gpa: 3.5
       },
       currentSemester,
       semesters: semesters || [],
@@ -89,9 +89,9 @@ export async function getAcademicProfile() {
     console.error('getAcademicProfile exception:', err)
     return {
       user: {
-        degree_name: 'Information Technology (MIT)',
-        university: 'University of Kelaniya',
-        current_gpa: 3.77
+        degree_name: 'Computer Science (BSc)',
+        university: 'State University',
+        current_gpa: 3.5
       },
       currentSemester: { year: 2, semester: 2 },
       semesters: [],
@@ -748,8 +748,8 @@ export async function updateCalculatedCgpa(cgpa: number, completedModulesPayload
       current_gpa: cgpa,
       full_name: 'Student User',
       email: 'student@studyplanner.com',
-      degree_name: 'Information Technology (MIT)',
-      university: 'University of Kelaniya',
+      degree_name: 'Computer Science (BSc)',
+      university: 'State University',
       graduation_year: 2028
     }).select().maybeSingle()
 

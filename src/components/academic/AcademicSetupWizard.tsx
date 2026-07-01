@@ -18,12 +18,12 @@ export function AcademicSetupWizard({ isOpen, onClose, initialProfile }: Academi
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
-    university: initialProfile?.university || 'University of Kelaniya',
-    faculty: initialProfile?.faculty || 'Faculty of Computing & Technology',
-    degree_name: initialProfile?.degree_name || 'Information Technology (MIT)',
-    department: initialProfile?.department || 'Department of Industrial Management',
-    current_year: initialProfile?.current_year || 2,
-    current_semester: initialProfile?.current_semester || 2,
+    university: initialProfile?.university || 'State University',
+    faculty: initialProfile?.faculty || 'Faculty of Science',
+    degree_name: initialProfile?.degree_name || 'Computer Science (BSc)',
+    department: initialProfile?.department || 'Department of Computer Science',
+    current_year: initialProfile?.current_year || 1,
+    current_semester: initialProfile?.current_semester || 1,
     graduation_year: initialProfile?.graduation_year || 2028,
     target_gpa: initialProfile?.target_gpa || 3.8
   })
@@ -101,7 +101,7 @@ export function AcademicSetupWizard({ isOpen, onClose, initialProfile }: Academi
                 required
                 value={formData.university}
                 onChange={(e) => handleChange('university', e.target.value)}
-                placeholder="E.g., University of Kelaniya"
+                placeholder="E.g., State University"
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none dark:text-white font-semibold"
               />
             </div>

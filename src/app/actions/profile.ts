@@ -22,8 +22,8 @@ export async function getUserProfile() {
           id: userId,
           full_name: 'Student User',
           email: 'student@studyplanner.com',
-          degree_name: 'Information Technology (MIT)',
-          university: 'University of Kelaniya',
+          degree_name: 'Computer Science (BSc)',
+          university: 'State University',
           graduation_year: 2028,
           current_gpa: 0.0,
           target_gpa: 4.0,
@@ -34,7 +34,7 @@ export async function getUserProfile() {
       
       if (upsertErr) {
         console.error('Failed to auto-create user profile:', upsertErr)
-        return { full_name: 'Student User', degree_name: 'Information Technology (MIT)', academic_profile_completed: false }
+        return { full_name: 'Student User', degree_name: 'Computer Science (BSc)', academic_profile_completed: false }
       }
       return newData
     }

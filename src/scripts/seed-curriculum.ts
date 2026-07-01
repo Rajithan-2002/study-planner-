@@ -73,7 +73,7 @@ const curriculum = [
 ]
 
 async function seed() {
-  console.log('Seeding Master Kelaniya MIT Curriculum Modules...')
+  console.log('Seeding Master Curriculum Modules...')
   
   await supabase.from('curriculum_modules').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
@@ -82,7 +82,7 @@ async function seed() {
   if (error) {
     console.error('Error seeding:', error)
   } else {
-    console.log(`Successfully seeded ${data.length} master MIT curriculum modules!`)
+    console.log(`Successfully seeded ${data.length} master curriculum modules!`)
   }
 }
 

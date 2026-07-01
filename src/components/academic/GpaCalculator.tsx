@@ -268,10 +268,10 @@ export function GpaCalculator() {
           <div>
             <div className="flex items-center gap-2">
               <Award className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-black tracking-tight text-foreground">MIT CGPA Calculator</h1>
+              <h1 className="text-2xl font-black tracking-tight text-foreground">CGPA Calculator</h1>
             </div>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-1">
-              University of Kelaniya IT Pathway • 4-Year Academic Tracker
+              Standard 4-Year Academic Tracker
             </p>
           </div>
 
@@ -337,7 +337,7 @@ export function GpaCalculator() {
       <section className="bg-card rounded-2xl border border-border p-6 shadow-xs">
         <h2 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
           <BookOpen className="h-4.5 w-4.5 text-primary" />
-          University of Kelaniya Grading Scale Reference
+          Standard Grading Scale Reference
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {[

@@ -57,10 +57,10 @@ async function seedTestUser() {
     id: userId,
     full_name: 'Test Student',
     email: activeEmail,
-    degree_name: 'Information Technology (MIT)',
-    university: 'University of Kelaniya',
+    degree_name: 'Computer Science (BSc)',
+    university: 'State University',
     graduation_year: 2028,
-    current_gpa: 3.77
+    current_gpa: 3.5
   })
 
   if (profileErr) console.error('Error updating public user profile:', profileErr)

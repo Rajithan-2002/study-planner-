@@ -199,7 +199,7 @@ export default function SignupPage() {
                     id="university"
                     name="university"
                     type="text"
-                    placeholder="University of Kelaniya"
+                    placeholder="State University"
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/60 pl-10 pr-3 py-3 text-sm font-medium text-white placeholder-slate-600 focus:border-violet-500/70 focus:outline-none focus:ring-1 focus:ring-violet-500/40 transition-all"
                   />
                 </div>

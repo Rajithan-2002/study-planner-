@@ -10,4 +10,4 @@ export interface UniversityCalendarEvent {
   badgeBg: string
 }
 
-export const KELANIYA_ACADEMIC_CALENDAR_2024_2025: UniversityCalendarEvent[] = []
+export const UNIVERSITY_ACADEMIC_CALENDAR_2024_2025: UniversityCalendarEvent[] = []

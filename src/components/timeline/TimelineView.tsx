@@ -22,7 +22,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { deleteLifeEvent } from '@/app/actions/life-events'
-import { KELANIYA_ACADEMIC_CALENDAR_2024_2025, UniversityCalendarEvent } from '@/lib/academic/calendar-data'
+import { UNIVERSITY_ACADEMIC_CALENDAR_2024_2025, UniversityCalendarEvent } from '@/lib/academic/calendar-data'
 import { createTaskDirect } from '@/app/actions/tasks'
 
 interface LifeEvent {
@@ -117,10 +117,10 @@ export function TimelineView({ initialEvents, initialTasks = [] }: TimelineViewP
     return `${year}-${month}-${day}`
   }
 
-  // Get active Kelaniya events for a date
+  // Get active university events for a date
   const getAcademicEventsForDate = (date: Date) => {
     const dateStr = getLocalDateString(date)
-    return KELANIYA_ACADEMIC_CALENDAR_2024_2025.filter(
+    return UNIVERSITY_ACADEMIC_CALENDAR_2024_2025.filter(
       event => dateStr >= event.startDate && dateStr <= event.endDate
     )
   }
@@ -372,7 +372,7 @@ export function TimelineView({ initialEvents, initialTasks = [] }: TimelineViewP
           ) : (
             // UNIVERSITY ACADEMIC CALENDAR LIST
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {KELANIYA_ACADEMIC_CALENDAR_2024_2025.map((item) => {
+              {UNIVERSITY_ACADEMIC_CALENDAR_2024_2025.map((item) => {
                 const style = academicCategoryStyles[item.category] || { color: 'text-slate-500', bg: 'bg-slate-100', border: 'border-slate-200' }
                 const isCurrent = getAcademicEventsForDate(new Date()).some(e => e.id === item.id)
 
