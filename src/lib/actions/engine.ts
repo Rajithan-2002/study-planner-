@@ -87,6 +87,14 @@ export class CoreActionEngine {
       if (error) throw error
       if (c) createdTargetId = c.id
     }
+    else if (action.actionType === 'CREATE_DOMAIN') {
+      const { data: d, error } = await supabase.from('domains').insert({
+        user_id: action.userId,
+        name: action.parameters.name || 'New Domain'
+      }).select('id').single()
+      if (error) throw error
+      if (d) createdTargetId = d.id
+    }
     else if (action.actionType === 'CREATE_TASK') {
       const { data: t, error } = await supabase.from('tasks').insert({
         user_id: action.userId,

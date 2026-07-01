@@ -40,9 +40,6 @@ export function QuickCapture() {
         setSuccessMsg(res.message || 'Successfully captured!')
         setInputText('')
         router.refresh()
-        setTimeout(() => {
-          closeModal()
-        }, 1500)
       } else {
         setErrorMsg(res.error || 'Failed to capture item.')
       }
@@ -80,61 +77,70 @@ export function QuickCapture() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              {errorMsg && (
-                <div className="bg-red-50 dark:bg-red-900/20 text-red-650 dark:text-red-400 p-3 rounded-2xl text-xs font-semibold">
-                  {errorMsg}
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-650 dark:text-emerald-400 p-3 rounded-2xl text-xs font-semibold whitespace-pre-wrap">
+            {successMsg ? (
+              <div className="p-5 space-y-4">
+                <div className="bg-emerald-50/60 dark:bg-emerald-950/15 border border-emerald-100 dark:border-emerald-900/30 text-slate-800 dark:text-slate-200 p-4.5 rounded-2xl text-xs font-semibold whitespace-pre-wrap max-h-[350px] overflow-y-auto leading-relaxed">
                   {successMsg}
                 </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-450 dark:text-slate-500 mb-2 tracking-wider">
-                  Describe what to plan
-                </label>
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  rows={4}
-                  autoFocus
-                  required
-                  placeholder="e.g., Need to revise Networking before Friday (creates high priority task) or Build AI Portfolio, 120 hours, finish before October (creates project with allocations)..."
-                  className="w-full rounded-2xl border border-slate-350 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 p-3.5 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none dark:text-white placeholder-slate-400 dark:placeholder-slate-600"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-650 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!inputText.trim() || isSubmitting}
-                  className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg hover:scale-102 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Parsing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-3.5 w-3.5" />
-                      Capture with AI
-                    </>
-                  )}
+                  Close
                 </button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                {errorMsg && (
+                  <div className="bg-red-50 dark:bg-red-900/20 text-red-650 dark:text-red-400 p-3 rounded-2xl text-xs font-semibold">
+                    {errorMsg}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-450 dark:text-slate-500 mb-2 tracking-wider">
+                    Describe what to plan
+                  </label>
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    rows={4}
+                    autoFocus
+                    required
+                    placeholder="e.g., Need to revise Networking before Friday (creates high priority task) or Build AI Portfolio, 120 hours, finish before October (creates project with allocations)..."
+                    className="w-full rounded-2xl border border-slate-350 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 p-3.5 text-xs font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none dark:text-white placeholder-slate-400 dark:placeholder-slate-600"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-650 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!inputText.trim() || isSubmitting}
+                    className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg hover:scale-102 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Parsing...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        Capture with AI
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

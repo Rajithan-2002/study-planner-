@@ -190,7 +190,9 @@ export async function getDashboardData() {
     const totalEstimatedHours = activePlanningItems.reduce((sum, i) => sum + i.estimated_total_hours, 0)
     
     const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
-    const todayRecommendedHours = Math.round((dailyPlan.totalPlannedMinutes / 60) * 10) / 10
+    const hours = Math.floor(dailyPlan.totalPlannedMinutes / 60)
+    const minutes = dailyPlan.totalPlannedMinutes % 60
+    const todayRecommendedHours = `${hours}h ${minutes}m`
     
     const capacities = await PlanningCapacityEngine.getCapacityPreferences(userId)
     const weeklyCapacityHours = 

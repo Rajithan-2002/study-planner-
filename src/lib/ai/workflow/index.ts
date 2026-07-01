@@ -84,15 +84,19 @@ export class AIWorkflowEngine {
         try {
           const provider = providerRegistry.get(session.providerSelected)
           if (provider) {
+            const todayDate = new Date()
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            const todayStr = `${todayDate.toISOString().split('T')[0]} (${days[todayDate.getDay()]})`
+
             const extractionPrompt = `You are a structured data extractor.
 Your job is to parse the user's natural language command and return a valid JSON object matching this schema:
 {
   "actions": [
     {
-      "action_type": "CREATE_TASK" | "CREATE_PROJECT" | "CREATE_CERTIFICATION" | "LOG_WORK_SESSION" | "DELETE_PROJECT" | "DELETE_CERTIFICATION" | "DELETE_TASK" | "RUN_SIMULATION" | "UPDATE_CAPACITY" | "CREATE_RECURRING" | "LOG_RECURRING" | "CREATE_FIXED" | "CREATE_VACATION",
+      "action_type": "CREATE_TASK" | "CREATE_PROJECT" | "CREATE_CERTIFICATION" | "CREATE_DOMAIN" | "LOG_WORK_SESSION" | "DELETE_PROJECT" | "DELETE_CERTIFICATION" | "DELETE_TASK" | "RUN_SIMULATION" | "UPDATE_CAPACITY" | "CREATE_RECURRING" | "LOG_RECURRING" | "CREATE_FIXED" | "CREATE_VACATION",
       "parameters": {
         "title": string, // for tasks/routines e.g. "Finish DSA"
-        "name": string, // for projects/certs e.g. "Build AI Portfolio"
+        "name": string, // for projects/certs/domains e.g. "Build AI Portfolio" or "Cyber Security"
         "due_date": "YYYY-MM-DD", // for tasks
         "target_completion_date": "YYYY-MM-DD", // for projects
         "target_exam_date": "YYYY-MM-DD", // for certs
@@ -123,9 +127,35 @@ Your job is to parse the user's natural language command and return a valid JSON
   ]
 }
 
+COMMAND FORMAT RULES:
+The user will often use the following structured formats to create entities. Parse them carefully:
+1. Tasks: create task : "Task Name", "Date"
+   - Action type: "CREATE_TASK"
+   - Parameter "title": "Task Name"
+   - Parameter "due_date": Parse "Date" (e.g. today, tomorrow, next week, July 10th) to YYYY-MM-DD using Reference Date.
+2. Projects: create project : "Project Name", "Date"
+   - Action type: "CREATE_PROJECT"
+   - Parameter "name": "Project Name"
+   - Parameter "target_completion_date": Parse "Date" to YYYY-MM-DD.
+3. Certifications: create certification : "Cert Name", "Date"
+   - Action type: "CREATE_CERTIFICATION"
+   - Parameter "name": "Cert Name"
+   - Parameter "target_exam_date": Parse "Date" to YYYY-MM-DD.
+4. Domains: create domain : "Domain Name"
+   - Action type: "CREATE_DOMAIN"
+   - Parameter "name": "Domain Name"
+
+If the user specifies a date relatively:
+- "today": use today's date
+- "tomorrow": use tomorrow's date
+- "next week": compute the date 7 days from today
+- Relative weekday (e.g., "Friday", "next Friday"): compute the date of the next occurrence of that weekday.
+- Specific date (e.g., "July 10th", "July 10"): format as YYYY-MM-DD for the current or next upcoming year.
+
 If no action is matching, return {"actions": []}.
 Always output only valid raw JSON. Do NOT wrap in markdown block, do not write explanations.
 
+Reference Date (Today): ${todayStr}
 User Command: "${session.context.raw_query}"`
 
             const extractionSession: AISession = {
@@ -206,6 +236,43 @@ User Command: "${session.context.raw_query}"`
           output: session.context[toolName] || { info: 'No details available.' },
           success: true
         })
+      }
+
+      // Check if we have completed action results and compile deterministic confirmation response
+      if (session.context.actionResults && session.context.actionResults.length > 0) {
+        const completedActions = session.context.actionResults.filter((r: any) => r.status === 'COMPLETED')
+        if (completedActions.length > 0) {
+          const msgs = completedActions.map((r: any) => {
+            if (r.actionType === 'CREATE_DOMAIN') {
+              return `Success: Domain "${r.parameters.name}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_TASK') {
+              return `Success: Task "${r.parameters.title}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_PROJECT') {
+              return `Success: Project "${r.parameters.name}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_CERTIFICATION') {
+              return `Success: Certification "${r.parameters.name}" has been created successfully.`
+            }
+            return `Success: Action "${r.actionType}" executed successfully.`
+          })
+          
+          session.rawLLMResponse = msgs.join('\n')
+          session.state = 'COMPLETED'
+          session.metrics.endTime = Date.now()
+          session.metrics.durationMs = session.metrics.endTime - session.metrics.startTime
+
+          return {
+            answer: session.rawLLMResponse || '',
+            citations: ['SYSTEM ACTIONS'],
+            toolCalls: session.toolsExecuted.map(t => t.name),
+            suggestions: [],
+            warnings: session.errors,
+            nextActions: [],
+            confidence: 1.0
+          }
+        }
       }
 
       // 6. Prompt Construction

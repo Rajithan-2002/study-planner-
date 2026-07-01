@@ -359,6 +359,50 @@ export class PlanningCapacityEngine {
     }
     capacityMinutes = Math.max(0, capacityMinutes - totalPlannedMinutes)
 
+    // LAYER 1.5: Timetable Lectures / Classes
+    const { data: activeSemesters } = await supabase.from('academic_semesters').select('id').eq('user_id', userId)
+    if (activeSemesters && activeSemesters.length > 0) {
+      const { data: modules } = await supabase.from('modules').select('id, name, code').in('semester_id', activeSemesters.map(s => s.id)).eq('user_id', userId)
+      if (modules && modules.length > 0) {
+        const todayWeekday = today.toLocaleDateString('en-US', { weekday: 'long' })
+        const { data: sessionsToday } = await supabase
+          .from('timetable_sessions')
+          .select('*')
+          .in('module_id', modules.map(m => m.id))
+          .eq('day', todayWeekday)
+          
+        if (sessionsToday && sessionsToday.length > 0) {
+          sessionsToday.forEach(session => {
+            const mod = modules.find(m => m.id === session.module_id)
+            const label = mod ? `${mod.code} - ${mod.name}` : session.code || 'Lecture'
+            
+            // Calculate duration in minutes
+            let mins = 120 // default 2 hours
+            if (session.start_time && session.end_time) {
+              try {
+                const [sh, sm] = session.start_time.split(':').map(Number)
+                const [eh, em] = session.end_time.split(':').map(Number)
+                mins = (eh * 60 + em) - (sh * 60 + sm)
+              } catch (e) {
+                // Keep default
+              }
+            }
+            
+            allocations.push({
+              id: session.id,
+              name: label,
+              type: 'LECTURE',
+              allocated_minutes: mins,
+              reason: `Lecture: ${session.session_type || 'Class'} at ${session.location || 'University'}`,
+              energy_zone: 'anytime'
+            })
+            totalPlannedMinutes += mins
+            capacityMinutes = Math.max(0, capacityMinutes - mins)
+          })
+        }
+      }
+    }
+
     // LAYER 2: Recurring Activities (subtracting skipped logs)
     const { data: recurring } = await supabase
       .from('recurring_activities')

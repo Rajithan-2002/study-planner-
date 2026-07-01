@@ -87,6 +87,19 @@ Current Execution Metadata:
 `
     }
 
+    let actionExecutionBlock = ''
+    if (session.context.actionResults && session.context.actionResults.length > 0) {
+      const results = session.context.actionResults.map((r: any) => `- Action: ${r.actionType} | Status: ${r.status} | Parameters: ${JSON.stringify(r.parameters)}`).join('\n')
+      actionExecutionBlock = `ACTION EXECUTION RESULTS:
+${results}
+
+CRITICAL RESPONSE GUARDRAILS:
+Since an action has been executed successfully, you MUST NOT output any general advice, outlines, study plans, schedules, or recommendations.
+OUTPUT ONLY a single, short, professional confirmation message (maximum 2 sentences) confirming the success of the action.
+Example: "Success: The DevOps domain has been created successfully."
+`
+    }
+
     return `SYSTEM INSTRUCTIONS:
 ${system}
 
@@ -94,6 +107,8 @@ CONTEXT DATA:
 ${contextData}
 
 ${decisionBlock}
+
+${actionExecutionBlock}
 
 EXECUTED TOOL OUTPUTS:
 ${executedTools || 'No tools executed.'}

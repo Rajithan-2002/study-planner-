@@ -39,7 +39,7 @@ export default async function DashboardPage() {
             const planning = data.planningStats || {
               totalRemainingHours: 0,
               totalEstimatedHours: 0,
-              todayRecommendedHours: 0,
+              todayRecommendedHours: '0h 0m',
               weeklyCapacityHours: 32,
               planningHealth: 100,
               averageCompletionProbability: 100,
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
                     <div className="lg:col-span-7 space-y-4 bg-background p-5 rounded-lg border border-border">
                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                         <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Today's Flexible Workload</span>
-                        <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded">{planning.todayRecommendedHours}h Recommended</span>
+                        <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded">{planning.todayRecommendedHours} Recommended</span>
                       </h4>
                       
                       {planning.dailyPlanAllocations.length === 0 ? (
