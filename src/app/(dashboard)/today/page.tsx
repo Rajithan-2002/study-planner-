@@ -2,9 +2,26 @@ import { Clock, Target, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { getTodayCommandCenterData } from '@/app/actions/today'
 import { TaskCheckbox } from '@/components/ui/TaskCheckbox'
 import { SchedulerHubView } from '@/components/scheduler/SchedulerHubView'
+import { createClient, getCurrentUserId } from '@/utils/supabase/server'
 
 export default async function TodayPage() {
   const data = await getTodayCommandCenterData()
+  
+  const supabase = await createClient()
+  const userId = await getCurrentUserId()
+
+  // Fetch active projects & certifications for stopwatch
+  const { data: projects } = await supabase
+    .from('projects')
+    .select('id, name')
+    .eq('user_id', userId)
+    .eq('is_archived', false)
+
+  const { data: certifications } = await supabase
+    .from('certifications')
+    .select('id, name')
+    .eq('user_id', userId)
+    .neq('status', 'COMPLETED')
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out pb-20 md:pb-0">
@@ -30,6 +47,8 @@ export default async function TodayPage() {
         preferences={data.preferences}
         conflicts={data.conflicts}
         proposedPlan={data.proposedPlan}
+        projects={projects || []}
+        certifications={certifications || []}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">

@@ -13,7 +13,7 @@ import {
   createFixedCommitment, deleteFixedCommitment, createAvailabilityException, 
   deleteAvailabilityException, runPlanningSimulationAction
 } from '@/app/actions/planning'
-import { formatHours } from '@/utils/format'
+import { formatHours } from '@/lib/utils/time'
 
 interface PlanningCenterViewProps {
   dailyPlan: any

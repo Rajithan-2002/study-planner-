@@ -16,6 +16,13 @@ export default async function ProjectsPage() {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
+  // Fetch all user certifications
+  const { data: certifications } = await supabase
+    .from('certifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
   // Fetch all user tasks for progress calculations
   const { data: tasks } = await supabase
     .from('tasks')
@@ -32,6 +39,7 @@ export default async function ProjectsPage() {
   return (
     <ProjectHubView
       initialProjects={projects || []}
+      initialCertifications={certifications || []}
       initialTasks={tasks || []}
       initialMilestones={milestones || []}
       domains={domains || []}

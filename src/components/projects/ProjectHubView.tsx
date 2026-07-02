@@ -10,8 +10,11 @@ import { archiveProject, restoreProject, deleteProject } from '@/app/actions/pro
 import { calculateProjectProgress, calculateProjectRiskAndHealth, getProjectAnalytics } from '@/lib/project/engine'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 
+import { FocusStopwatch } from '@/components/scheduler/FocusStopwatch'
+
 interface ProjectHubViewProps {
   initialProjects: any[]
+  initialCertifications: any[]
   initialTasks: any[]
   initialMilestones: any[]
   domains: any[]
@@ -19,6 +22,7 @@ interface ProjectHubViewProps {
 
 export function ProjectHubView({
   initialProjects,
+  initialCertifications,
   initialTasks,
   initialMilestones,
   domains
@@ -176,6 +180,14 @@ export function ProjectHubView({
           <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Attention Needed</p>
           <p className="text-2xl font-black text-red-600 dark:text-red-400 mt-1">{analytics.overdueCount}</p>
         </div>
+      </div>
+
+      {/* FOCUS STOPWATCH RUNTIME */}
+      <div className="grid grid-cols-1 max-w-4xl">
+        <FocusStopwatch
+          projects={initialProjects.filter(p => !p.is_archived).map(p => ({ id: p.id, name: p.name }))}
+          certifications={initialCertifications.filter(c => c.status !== 'COMPLETED').map(c => ({ id: c.id, name: c.name }))}
+        />
       </div>
 
       {/* CONTROLS BAR: SEARCH, TABS & FILTERS */}

@@ -2,7 +2,7 @@ import { Target, Calendar, AlertCircle, Clock, GraduationCap, Award, Briefcase, 
 import { getDashboardData } from '@/app/actions/dashboard'
 import Link from 'next/link'
 import { QuickCapture } from '@/components/dashboard/QuickCapture'
-import { formatHours } from '@/utils/format'
+import { formatHours } from '@/lib/utils/time'
 
 export default async function DashboardPage() {
   const data = await getDashboardData()

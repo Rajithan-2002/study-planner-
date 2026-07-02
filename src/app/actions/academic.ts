@@ -734,7 +734,17 @@ export async function addModuleResult(formData: FormData) {
       importance: 40
     })
 
+    await syncAcademicMetrics(userId)
+    try {
+      const { getRecommendations } = await import('@/app/actions/decision')
+      await getRecommendations('BALANCED')
+    } catch (decErr) {
+      console.error('Failed to trigger decision engine update:', decErr)
+    }
+
     revalidatePath(`/academic/module/${module_id}`)
+    revalidatePath('/academic')
+    revalidatePath('/')
     return { success: true, data }
   } catch (err: any) {
     console.error('addModuleResult exception:', err)
@@ -854,6 +864,13 @@ export async function updateCalculatedCgpa(cgpa: number, completedModulesPayload
     })
 
     await syncAcademicMetrics(userId)
+    try {
+      const { getRecommendations } = await import('@/app/actions/decision')
+      await getRecommendations('BALANCED')
+    } catch (decErr) {
+      console.error('Failed to trigger decision engine update:', decErr)
+    }
+
     revalidatePath('/academic')
     revalidatePath('/academic/roadmap')
     revalidatePath('/')

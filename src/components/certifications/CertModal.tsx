@@ -14,6 +14,33 @@ interface CertModalProps {
 
 export function CertModal({ isOpen, onClose, domains, editingCert }: CertModalProps) {
   const router = useRouter()
+  const [domainsList, setDomainsList] = useState(domains)
+
+  useEffect(() => {
+    setDomainsList(domains)
+  }, [domains])
+
+  const handleCreateDomainInline = async () => {
+    const name = prompt('Enter new domain name:')
+    if (!name || !name.trim()) return
+    try {
+      const { createDomain } = await import('@/app/actions/domains')
+      const res = await createDomain(name.trim())
+      if (res && res.success) {
+        const { getDomains } = await import('@/app/actions/domains')
+        const updated = await getDomains()
+        setDomainsList(updated || [])
+        if (res.data?.id) {
+          setFormData(prev => ({ ...prev, domain_id: res.data.id }))
+        }
+      } else {
+        alert(res?.error || 'Failed to create domain.')
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error creating domain inline.')
+    }
+  }
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -143,16 +170,25 @@ export function CertModal({ isOpen, onClose, domains, editingCert }: CertModalPr
             </div>
             <div>
               <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">Associated Domain</label>
-              <select
-                value={formData.domain_id}
-                onChange={e => setFormData({ ...formData, domain_id: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 text-xs font-bold focus:border-emerald-500 outline-none dark:text-white"
-              >
-                <option value="">No Domain / General</option>
-                {domains.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={formData.domain_id}
+                  onChange={e => setFormData({ ...formData, domain_id: e.target.value })}
+                  className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2.5 text-xs font-bold focus:border-emerald-500 outline-none dark:text-white"
+                >
+                  <option value="">No Domain / General</option>
+                  {domainsList.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleCreateDomainInline}
+                  className="px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-slate-400 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-xs font-black cursor-pointer shrink-0 transition-colors"
+                >
+                  + New
+                </button>
+              </div>
             </div>
           </div>
 

@@ -5,7 +5,9 @@ import { Calendar, Clock, AlertTriangle, CheckCircle2, Plus, Sparkles, Settings,
 import { createTimeBlock, updateTimeBlock, deleteTimeBlock, toggleTimeBlockStatus, saveSchedulerPreferences, proposeDailyPlan, acceptDailyPlan, postponeTimeBlock } from '@/app/actions/scheduler'
 import { calculateWorkload } from '@/lib/scheduler/engine'
 import { useRouter } from 'next/navigation'
-import { formatHours } from '@/utils/format'
+import { formatHours } from '@/lib/utils/time'
+
+import { FocusStopwatch } from './FocusStopwatch'
 
 interface SchedulerHubViewProps {
   todaysClasses: any[]
@@ -15,6 +17,8 @@ interface SchedulerHubViewProps {
   preferences: any
   conflicts: any[]
   proposedPlan: any
+  projects?: { id: string; name: string }[]
+  certifications?: { id: string; name: string }[]
 }
 
 export function SchedulerHubView({
@@ -24,7 +28,9 @@ export function SchedulerHubView({
   timeBlocks = [],
   preferences,
   conflicts = [],
-  proposedPlan
+  proposedPlan,
+  projects = [],
+  certifications = []
 }: SchedulerHubViewProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -178,6 +184,9 @@ export function SchedulerHubView({
             </span>
           </div>
         </div>
+
+        {/* FOCUS STOPWATCH RUNTIME */}
+        <FocusStopwatch projects={projects} certifications={certifications} />
 
         {/* ALERTS / CONFLICTS */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
