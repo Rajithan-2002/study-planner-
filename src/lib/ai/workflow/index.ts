@@ -12,6 +12,60 @@ import { ContextFusionEngine } from '../context-fusion/engine'
 import { CoreActionEngine } from '@/lib/actions/engine'
 import { PlanningCapacityEngine } from '../../planning/engine'
 
+const VALID_ACTION_TYPES = new Set([
+  'CREATE_TASK', 'CREATE_PROJECT', 'CREATE_CERTIFICATION', 'CREATE_DOMAIN',
+  'LOG_WORK_SESSION', 'DELETE_PROJECT', 'DELETE_CERTIFICATION', 'DELETE_TASK',
+  'RUN_SIMULATION', 'UPDATE_CAPACITY', 'CREATE_RECURRING', 'LOG_RECURRING',
+  'CREATE_FIXED', 'CREATE_VACATION'
+])
+
+interface ExtractedAction {
+  action_type: string
+  parameters: Record<string, unknown>
+}
+
+function isExtractedAction(value: unknown): value is ExtractedAction {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.action_type === 'string' &&
+    VALID_ACTION_TYPES.has(v.action_type) &&
+    typeof v.parameters === 'object' &&
+    v.parameters !== null
+  )
+}
+
+/**
+ * Defensively pull an `{ actions: [...] }` payload out of a raw LLM response.
+ * Strips markdown fences, tolerates leading/trailing prose, and drops any
+ * malformed or unknown-type action rather than throwing.
+ */
+function parseExtractedActions(raw: string): ExtractedAction[] {
+  if (!raw) return []
+
+  let text = raw.trim()
+  // Strip ```json ... ``` / ``` ... ``` fences if present
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence) text = fence[1].trim()
+
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text.slice(start, end + 1))
+  } catch (e) {
+    console.warn('[AI_WORKFLOW] Failed to parse extraction JSON:', (e as Error).message)
+    return []
+  }
+
+  const actions = (parsed as { actions?: unknown })?.actions
+  if (!Array.isArray(actions)) return []
+
+  return actions.filter(isExtractedAction)
+}
+
 export class AIWorkflowEngine {
   static async runWorkflow(userId: string, rawQuery: string, sessionId?: string, isCaptureMode = false): Promise<AIResponse> {
     const startTime = Date.now()
@@ -84,15 +138,19 @@ export class AIWorkflowEngine {
         try {
           const provider = providerRegistry.get(session.providerSelected)
           if (provider) {
+            const todayDate = new Date()
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            const todayStr = `${todayDate.toISOString().split('T')[0]} (${days[todayDate.getDay()]})`
+
             const extractionPrompt = `You are a structured data extractor.
 Your job is to parse the user's natural language command and return a valid JSON object matching this schema:
 {
   "actions": [
     {
-      "action_type": "CREATE_TASK" | "CREATE_PROJECT" | "CREATE_CERTIFICATION" | "LOG_WORK_SESSION" | "DELETE_PROJECT" | "DELETE_CERTIFICATION" | "DELETE_TASK" | "RUN_SIMULATION" | "UPDATE_CAPACITY" | "CREATE_RECURRING" | "LOG_RECURRING" | "CREATE_FIXED" | "CREATE_VACATION",
+      "action_type": "CREATE_TASK" | "CREATE_PROJECT" | "CREATE_CERTIFICATION" | "CREATE_DOMAIN" | "LOG_WORK_SESSION" | "DELETE_PROJECT" | "DELETE_CERTIFICATION" | "DELETE_TASK" | "RUN_SIMULATION" | "UPDATE_CAPACITY" | "CREATE_RECURRING" | "LOG_RECURRING" | "CREATE_FIXED" | "CREATE_VACATION",
       "parameters": {
         "title": string, // for tasks/routines e.g. "Finish DSA"
-        "name": string, // for projects/certs e.g. "Build AI Portfolio"
+        "name": string, // for projects/certs/domains e.g. "Build AI Portfolio" or "Cyber Security"
         "due_date": "YYYY-MM-DD", // for tasks
         "target_completion_date": "YYYY-MM-DD", // for projects
         "target_exam_date": "YYYY-MM-DD", // for certs
@@ -123,9 +181,35 @@ Your job is to parse the user's natural language command and return a valid JSON
   ]
 }
 
+COMMAND FORMAT RULES:
+The user will often use the following structured formats to create entities. Parse them carefully:
+1. Tasks: create task : "Task Name", "Date"
+   - Action type: "CREATE_TASK"
+   - Parameter "title": "Task Name"
+   - Parameter "due_date": Parse "Date" (e.g. today, tomorrow, next week, July 10th) to YYYY-MM-DD using Reference Date.
+2. Projects: create project : "Project Name", "Date"
+   - Action type: "CREATE_PROJECT"
+   - Parameter "name": "Project Name"
+   - Parameter "target_completion_date": Parse "Date" to YYYY-MM-DD.
+3. Certifications: create certification : "Cert Name", "Date"
+   - Action type: "CREATE_CERTIFICATION"
+   - Parameter "name": "Cert Name"
+   - Parameter "target_exam_date": Parse "Date" to YYYY-MM-DD.
+4. Domains: create domain : "Domain Name"
+   - Action type: "CREATE_DOMAIN"
+   - Parameter "name": "Domain Name"
+
+If the user specifies a date relatively:
+- "today": use today's date
+- "tomorrow": use tomorrow's date
+- "next week": compute the date 7 days from today
+- Relative weekday (e.g., "Friday", "next Friday"): compute the date of the next occurrence of that weekday.
+- Specific date (e.g., "July 10th", "July 10"): format as YYYY-MM-DD for the current or next upcoming year.
+
 If no action is matching, return {"actions": []}.
 Always output only valid raw JSON. Do NOT wrap in markdown block, do not write explanations.
 
+Reference Date (Today): ${todayStr}
 User Command: "${session.context.raw_query}"`
 
             const extractionSession: AISession = {
@@ -143,39 +227,35 @@ User Command: "${session.context.raw_query}"`
             }
 
             const extractionRes = await provider.generateResponse(extractionSession)
-            if (extractionRes && extractionRes.answer) {
-              const start = extractionRes.answer.indexOf('{')
-              const end = extractionRes.answer.lastIndexOf('}')
-              const jsonStr = start !== -1 && end !== -1 ? extractionRes.answer.substring(start, end + 1) : ''
-              
-              if (jsonStr) {
-                const parsed = JSON.parse(jsonStr)
-                if (parsed && Array.isArray(parsed.actions)) {
-                  const resultsList = []
-                  
-                  for (const act of parsed.actions) {
-                    if (act.action_type === 'RUN_SIMULATION') {
-                      const est = Number(act.parameters.estimated_total_hours || 10)
-                      const deadline = act.parameters.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                      const sim = await PlanningCapacityEngine.runPlanningSimulation(userId, est, deadline)
-                      session.context.simulationResult = sim
-                    } else {
-                      const targetEntity = act.parameters.entity_type || null
-                      const targetId = act.parameters.entity_id || null
-                      
-                      const actionResult = await CoreActionEngine.requestAction(
-                        userId,
-                        act.action_type,
-                        act.parameters,
-                        targetEntity,
-                        targetId
-                      )
-                      resultsList.push(actionResult)
-                    }
-                  }
-                  session.context.actionResults = resultsList
+            const extractedActions = parseExtractedActions(extractionRes?.answer || '')
+
+            if (extractedActions.length > 0) {
+              const resultsList = []
+
+              for (const act of extractedActions) {
+                const params = act.parameters
+                if (act.action_type === 'RUN_SIMULATION') {
+                  const est = Number(params.estimated_total_hours) || 10
+                  const deadline = typeof params.deadline === 'string'
+                    ? params.deadline
+                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                  const sim = await PlanningCapacityEngine.runPlanningSimulation(userId, est, deadline)
+                  session.context.simulationResult = sim
+                } else {
+                  const targetEntity = typeof params.entity_type === 'string' ? params.entity_type : undefined
+                  const targetId = typeof params.entity_id === 'string' ? params.entity_id : undefined
+
+                  const actionResult = await CoreActionEngine.requestAction(
+                    userId,
+                    act.action_type,
+                    params,
+                    targetEntity,
+                    targetId
+                  )
+                  resultsList.push(actionResult)
                 }
               }
+              session.context.actionResults = resultsList
             }
           }
         } catch (e: any) {
@@ -184,28 +264,44 @@ User Command: "${session.context.raw_query}"`
         }
       }
 
-      // 5. Tool Routing & Execution (Deterministic wrapper based on required tools)
       session.state = 'TOOLS_ROUTED'
-      for (const toolName of capability.requiredTools) {
-        const check = AIGuardrails.checkToolPermission(toolName, {})
-        if (!check.allowed) {
-          session.errors.push(`Tool execution for "${toolName}" was skipped: ${check.reason}`)
-          session.toolsExecuted.push({
-            name: toolName,
-            params: {},
-            output: null,
-            success: false
-          })
-          continue
-        }
 
-        // Mock execute tools for AI context using platform engine outputs
-        session.toolsExecuted.push({
-          name: toolName,
-          params: {},
-          output: session.context[toolName] || { info: 'No details available.' },
-          success: true
-        })
+      // If natural-language actions were executed, return a deterministic
+      // confirmation without a second LLM round-trip.
+      if (session.context.actionResults && session.context.actionResults.length > 0) {
+        const completedActions = session.context.actionResults.filter((r: any) => r.status === 'COMPLETED')
+        if (completedActions.length > 0) {
+          const msgs = completedActions.map((r: any) => {
+            if (r.actionType === 'CREATE_DOMAIN') {
+              return `Success: Domain "${r.parameters.name}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_TASK') {
+              return `Success: Task "${r.parameters.title}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_PROJECT') {
+              return `Success: Project "${r.parameters.name}" has been created successfully.`
+            }
+            if (r.actionType === 'CREATE_CERTIFICATION') {
+              return `Success: Certification "${r.parameters.name}" has been created successfully.`
+            }
+            return `Success: Action "${r.actionType}" executed successfully.`
+          })
+
+          session.rawLLMResponse = msgs.join('\n')
+          session.state = 'COMPLETED'
+          session.metrics.endTime = Date.now()
+          session.metrics.durationMs = session.metrics.endTime - session.metrics.startTime
+
+          return {
+            answer: session.rawLLMResponse || '',
+            citations: [],
+            toolCalls: completedActions.map((r: any) => r.actionType),
+            suggestions: [],
+            warnings: session.errors,
+            nextActions: [],
+            confidence: 1.0
+          }
+        }
       }
 
       // 6. Prompt Construction
@@ -236,11 +332,11 @@ User Command: "${session.context.raw_query}"`
       // 8. Standardize Structured AIResponse output
       return {
         answer: session.rawLLMResponse || 'No response compiled.',
-        citations: capability.requiredTools.map(t => `${t.toUpperCase()} ENGINE`),
-        toolCalls: session.toolsExecuted.map(t => t.name),
+        citations: this.deriveCitations(session),
+        toolCalls: [],
         suggestions: this.generateSuggestions(session.intent),
         warnings: session.errors,
-        nextActions: this.generateNextActions(session.intent),
+        nextActions: [],
         confidence: classification.confidence
       }
 
@@ -261,21 +357,23 @@ User Command: "${session.context.raw_query}"`
     }
   }
 
+  /** Real citations from retrieved knowledge documents, if any were used. */
+  private static deriveCitations(session: AISession): string[] {
+    const citations = session.context.rag?.citations
+    if (!Array.isArray(citations) || citations.length === 0) return []
+    const titles = citations
+      .map((c: any) => c?.formattedCitation || c?.documentTitle)
+      .filter((t: any): t is string => typeof t === 'string' && t.length > 0)
+    return Array.from(new Set(titles)).slice(0, 5)
+  }
+
   private static generateSuggestions(intent: string): string[] {
     switch (intent) {
       case 'ACADEMIC': return ['Calculate GPA target', 'List upcoming assignments']
-      case 'PROJECT': return ['Show project health dials', 'Update HackX milestones']
-      case 'CERTIFICATION': return ['Launch CCNA study block', 'Start new study session']
-      case 'SCHEDULER': return ['Propose balanced daily plan', 'Inspect overlapping collisions']
-      default: return ['Help me study', 'Check my schedule']
-    }
-  }
-
-  private static generateNextActions(intent: string): string[] {
-    switch (intent) {
-      case 'ACADEMIC': return ['View Semester Timetable', 'Go to Academic Hub']
-      case 'SCHEDULER': return ['Propose balanced daily plan']
-      default: return []
+      case 'PROJECT': return ['Show project health', 'Review project milestones']
+      case 'CERTIFICATION': return ['Start a study session', 'Show certification progress']
+      case 'SCHEDULER': return ['Propose a balanced daily plan', 'Check for schedule conflicts']
+      default: return ['Help me plan today', 'Check my schedule']
     }
   }
 }

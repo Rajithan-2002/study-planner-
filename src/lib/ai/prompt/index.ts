@@ -75,8 +75,7 @@ Current Execution Metadata:
   static buildFinalPrompt(session: AISession): string {
     const system = this.getBaseSystemPrompt(session)
     const contextData = JSON.stringify(session.context, null, 2)
-    const executedTools = session.toolsExecuted.map(t => `- Tool "${t.name}" (Success: ${t.success}): ${JSON.stringify(t.output)}`).join('\n')
-    
+
     let decisionBlock = ''
     if (session.context.decision) {
       const dec = session.context.decision
@@ -84,6 +83,19 @@ Current Execution Metadata:
 - Workload: ${dec.workloadHealth?.totalHours} hours (Zone: ${dec.workloadHealth?.zone})
 - Top Risks: ${dec.risks?.map((r: any) => `[${r.domain}] ${r.reason}`).join('; ') || 'None'}
 - Top Recommendations: ${dec.recommendations?.map((r: any) => `${r.title} (Priority Score: ${r.priorityScore})`).join('; ') || 'None'}
+`
+    }
+
+    let actionExecutionBlock = ''
+    if (session.context.actionResults && session.context.actionResults.length > 0) {
+      const results = session.context.actionResults.map((r: any) => `- Action: ${r.actionType} | Status: ${r.status} | Parameters: ${JSON.stringify(r.parameters)}`).join('\n')
+      actionExecutionBlock = `ACTION EXECUTION RESULTS:
+${results}
+
+CRITICAL RESPONSE GUARDRAILS:
+Since an action has been executed successfully, you MUST NOT output any general advice, outlines, study plans, schedules, or recommendations.
+OUTPUT ONLY a single, short, professional confirmation message (maximum 2 sentences) confirming the success of the action.
+Example: "Success: The DevOps domain has been created successfully."
 `
     }
 
@@ -95,12 +107,11 @@ ${contextData}
 
 ${decisionBlock}
 
-EXECUTED TOOL OUTPUTS:
-${executedTools || 'No tools executed.'}
+${actionExecutionBlock}
 
 USER REQUEST:
 "${session.context.raw_query}"
 
-Please respond to the user query based on the above system state, context logs, decision summaries, and tool executions.`
+Please respond to the user query based on the above system state, context logs, and decision summaries.`
   }
 }

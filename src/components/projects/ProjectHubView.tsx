@@ -10,8 +10,11 @@ import { archiveProject, restoreProject, deleteProject } from '@/app/actions/pro
 import { calculateProjectProgress, calculateProjectRiskAndHealth, getProjectAnalytics } from '@/lib/project/engine'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 
+// import { FocusStopwatch } from '@/components/scheduler/FocusStopwatch'
+
 interface ProjectHubViewProps {
   initialProjects: any[]
+  initialCertifications: any[]
   initialTasks: any[]
   initialMilestones: any[]
   domains: any[]
@@ -19,6 +22,7 @@ interface ProjectHubViewProps {
 
 export function ProjectHubView({
   initialProjects,
+  initialCertifications,
   initialTasks,
   initialMilestones,
   domains
@@ -177,6 +181,8 @@ export function ProjectHubView({
           <p className="text-2xl font-black text-red-600 dark:text-red-400 mt-1">{analytics.overdueCount}</p>
         </div>
       </div>
+
+      {/* FOCUS STOPWATCH RUNTIME REMOVED */}
 
       {/* CONTROLS BAR: SEARCH, TABS & FILTERS */}
       <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">

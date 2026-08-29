@@ -5,12 +5,9 @@ export default async function TimelinePage() {
   const supabase = await createClient()
   const userId = await getCurrentUserId()
 
-  // Fetch life events for the user
-  const { data: events } = await supabase
-    .from('life_events')
-    .select('*')
-    .eq('user_id', userId)
-    .order('event_date', { ascending: true })
+  // Fetch unified events using TimelineAggregator
+  const { TimelineAggregator } = await import('@/lib/timeline/aggregator')
+  const allEvents = await TimelineAggregator.getUnifiedTimeline(userId)
 
   // Fetch tasks for the user
   const { data: tasks } = await supabase
@@ -33,7 +30,7 @@ export default async function TimelinePage() {
       </div>
 
       {/* TIMELINE CLIENT VIEWER */}
-      <TimelineView initialEvents={events || []} initialTasks={tasks || []} />
+      <TimelineView initialEvents={allEvents} initialTasks={tasks || []} />
 
     </div>
   )

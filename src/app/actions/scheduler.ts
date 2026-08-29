@@ -219,8 +219,60 @@ export async function saveSchedulerPreferences(formData: FormData) {
   }
 }
 
+export async function saveSpecialPlan(name: string, dailyHours: number, tasks: { name: string; hours: number; note?: string; type?: string }[]) {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    const planData = {
+      name,
+      dailyHours,
+      tasks
+    }
+
+    const { data, error } = await supabase.from('generated_plans').insert({
+      user_id: userId,
+      plan_date: new Date().toISOString().split('T')[0],
+      type: 'SPECIAL',
+      status: 'SAVED',
+      plan_data: planData
+    }).select().single()
+
+    if (error) {
+      console.error('Error saving special plan:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/today')
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('saveSpecialPlan exception:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function getSpecialPlans() {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    const { data } = await supabase
+      .from('generated_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', 'SPECIAL')
+      .eq('status', 'SAVED')
+      .order('created_at', { ascending: false })
+
+    return data || []
+  } catch (err: any) {
+    console.error('getSpecialPlans exception:', err)
+    return []
+  }
+}
+
 // PROPOSE & ACCEPT STRATEGY PLANS
-export async function proposeDailyPlan(planDateStr: string, strategy: string = 'BALANCED') {
+export async function proposeDailyPlan(planDateStr: string, strategy: string = 'BALANCED', skipRevalidate = false) {
   try {
     const supabase = await createClient()
     const userId = await getCurrentUserId()
@@ -238,38 +290,78 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
       }
     }
 
-    // 2. Request daily study plan from the Planning Capacity Engine
-    const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
+    let proposedTimeline: any[] = []
 
-    // 3. Construct proposed hourly schedule layout using engine recommendations
-    const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 8
-    let currentHour = baseHour
-    let currentMin = 0
+    if (strategy.startsWith('SPECIAL_')) {
+      // Custom Special Plan created by the user, stored in generated_plans
+      const specialPlanId = strategy.replace('SPECIAL_', '')
+      const { data: specPlan } = await supabase
+        .from('generated_plans')
+        .select('*')
+        .eq('id', specialPlanId)
+        .eq('user_id', userId)
+        .maybeSingle()
 
-    const proposedTimeline = dailyPlan.allocations.map((alloc) => {
-      const scheduledTime = new Date(`${planDateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`)
-      
-      const durationMins = alloc.allocated_minutes
-      // Increment time counters for next block
-      currentMin += durationMins
-      if (currentMin >= 60) {
-        currentHour += Math.floor(currentMin / 60)
-        currentMin = currentMin % 60
+      if (specPlan && specPlan.plan_data && Array.isArray(specPlan.plan_data.tasks)) {
+        const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 9
+        let currentHour = baseHour
+        let currentMin = 0
+
+        proposedTimeline = specPlan.plan_data.tasks.map((t: any) => {
+          const durationMins = Math.round((t.hours || 1) * 60)
+          const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`
+          const scheduledTime = new Date(`${planDateStr}T${timeStr}:00`)
+
+          currentMin += durationMins
+          if (currentMin >= 60) {
+            currentHour += Math.floor(currentMin / 60)
+            currentMin = currentMin % 60
+          }
+
+          return {
+            title: `${t.name} (${t.hours >= 1 ? `${t.hours}h` : `${t.hours * 60}m`})`,
+            type: t.type || 'STUDY',
+            status: 'PENDING',
+            duration_minutes: durationMins,
+            is_locked: false,
+            scheduled_at: scheduledTime.toISOString(),
+            reason: t.note || `${specPlan.plan_data.name} item`,
+            energy_zone: 'HIGH'
+          }
+        })
       }
+    } else {
+      // Default: capacity-engine-driven daily study plan
+      const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
 
-      return {
-        title: `${alloc.name} [${alloc.type}]`,
-        type: alloc.type === 'PROJECT' ? 'PROJECT' : alloc.type === 'CERTIFICATION' ? 'STUDY' : 'DEEP_WORK',
-        status: 'PENDING',
-        duration_minutes: durationMins,
-        is_locked: false,
-        related_entity_type: alloc.type,
-        related_entity_id: alloc.id,
-        scheduled_at: scheduledTime.toISOString(),
-        reason: alloc.reason,
-        energy_zone: alloc.energy_zone
-      }
-    })
+      const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 8
+      let currentHour = baseHour
+      let currentMin = 0
+
+      proposedTimeline = dailyPlan.allocations.map((alloc) => {
+        const scheduledTime = new Date(`${planDateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`)
+
+        const durationMins = alloc.allocated_minutes
+        currentMin += durationMins
+        if (currentMin >= 60) {
+          currentHour += Math.floor(currentMin / 60)
+          currentMin = currentMin % 60
+        }
+
+        return {
+          title: `${alloc.name} [${alloc.type}]`,
+          type: alloc.type === 'PROJECT' ? 'PROJECT' : alloc.type === 'CERTIFICATION' ? 'STUDY' : 'DEEP_WORK',
+          status: 'PENDING',
+          duration_minutes: durationMins,
+          is_locked: false,
+          related_entity_type: alloc.type,
+          related_entity_id: alloc.id,
+          scheduled_at: scheduledTime.toISOString(),
+          reason: alloc.reason,
+          energy_zone: alloc.energy_zone
+        }
+      })
+    }
 
     // Upsert PROPOSED plan
     const planDate = new Date(planDateStr).toISOString().split('T')[0]
@@ -310,7 +402,14 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
 
     await logActivity('PROPOSE_DAILY_PLAN', 'GENERATED_PLAN', plan.id)
 
-    revalidatePath('/today')
+    if (!skipRevalidate) {
+      try {
+        revalidatePath('/today')
+      } catch {
+        // Ignored when called during Server Component render pass
+      }
+    }
+
     return { success: true, data: plan }
   } catch (err: any) {
     console.error('proposeDailyPlan exception:', err)

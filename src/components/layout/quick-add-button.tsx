@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Plus, Briefcase, Award, FileText, CheckCircle2, Trophy, Upload, X, Loader2 } from 'lucide-react'
+import { Plus, Briefcase, Award, FileText, CheckCircle2, Trophy, Upload, X, Loader2, Tag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getDomains } from '@/app/actions/domains'
 import { createInboxItem, createNoteDirect } from '@/app/actions/quick-capture'
@@ -31,6 +31,7 @@ export function QuickAddButton() {
     { name: 'Task', icon: CheckCircle2, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' },
     { name: 'Project Idea', icon: Briefcase, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
     { name: 'Certification Idea', icon: Award, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { name: 'Domain', icon: Tag, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-500/10' },
     { name: 'Note', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
     { name: 'Life Event', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
     { name: 'Upload', icon: Upload, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-500/10' },

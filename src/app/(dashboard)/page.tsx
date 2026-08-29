@@ -2,6 +2,7 @@ import { Target, Calendar, AlertCircle, Clock, GraduationCap, Award, Briefcase, 
 import { getDashboardData } from '@/app/actions/dashboard'
 import Link from 'next/link'
 import { QuickCapture } from '@/components/dashboard/QuickCapture'
+import { formatHours } from '@/lib/utils/time'
 
 export default async function DashboardPage() {
   const data = await getDashboardData()
@@ -10,7 +11,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out pb-20 md:pb-0">
-      
+
       {/* HEADER & QUICK CAPTURE */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border pb-6">
         <div>
@@ -21,19 +22,19 @@ export default async function DashboardPage() {
             What deserves your attention right now?
           </p>
         </div>
-        
+
         {/* Always-Visible Quick Capture */}
         <div className="w-full sm:w-auto shrink-0">
           <QuickCapture />
         </div>
       </div>
-      
+
       {/* MAIN TWO-COLUMN LAYOUT */}
       <div className="flex flex-col lg:flex-row gap-8">
-        
+
         {/* LEFT COLUMN: 70% */}
         <div className="w-full lg:w-[70%] space-y-8">
-          
+
           {/* HERO: TODAY'S FOCUS & INTELLIGENT PLAN */}
           {(() => {
             const planning = data.planningStats || {
@@ -48,7 +49,7 @@ export default async function DashboardPage() {
             return (
               <div className="rounded-xl border border-border bg-card p-6 md:p-8 shadow-xs relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[50px] pointer-events-none rounded-full" />
-                
+
                 <div className="relative z-10 space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
                     <div className="flex items-center gap-3">
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
                         <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Today's Flexible Workload</span>
                         <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded">{planning.todayRecommendedHours}h Recommended</span>
                       </h4>
-                      
+
                       {planning.dailyPlanAllocations.length === 0 ? (
                         <p className="text-xs text-muted-foreground font-semibold py-4 text-center">No active workload allocations scheduled for today. You are fully caught up!</p>
                       ) : (
@@ -90,7 +91,7 @@ export default async function DashboardPage() {
                                 </span>
                               </div>
                               <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">
-                                {alloc.allocated_minutes >= 60 ? `${(alloc.allocated_minutes / 60).toFixed(1)}h` : `${alloc.allocated_minutes}m`}
+                                {alloc.allocated_minutes >= 60 ? formatHours(alloc.allocated_minutes / 60) : `${alloc.allocated_minutes}m`}
                               </span>
                             </div>
                           ))}
@@ -103,8 +104,8 @@ export default async function DashboardPage() {
                       <div className="bg-background p-4 rounded-lg border border-border flex flex-col justify-between">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Remaining Hours</span>
                         <div className="mt-2">
-                          <span className="text-2xl font-black text-foreground">{planning.totalRemainingHours}h</span>
-                          <span className="text-[9px] font-semibold text-muted-foreground block mt-1">out of {planning.totalEstimatedHours}h estimated</span>
+                          <span className="text-2xl font-black text-foreground">{formatHours(planning.totalRemainingHours)}</span>
+                          <span className="text-[9px] font-semibold text-muted-foreground block mt-1">out of {formatHours(planning.totalEstimatedHours)} estimated</span>
                         </div>
                       </div>
 
@@ -121,12 +122,12 @@ export default async function DashboardPage() {
                       <div className="bg-background p-4 rounded-lg border border-border flex flex-col justify-between col-span-2">
                         <div className="flex justify-between items-center">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Weekly Capacity Load</span>
-                          <span className="text-xs font-extrabold text-foreground">{planning.weeklyCapacityHours}h / week</span>
+                          <span className="text-xs font-extrabold text-foreground">{formatHours(planning.weeklyCapacityHours)} / week</span>
                         </div>
                         <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-full transition-all duration-500" 
-                            style={{ width: `${Math.min(100, (planning.totalRemainingHours / Math.max(1, planning.weeklyCapacityHours)) * 100)}%` }} 
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, (planning.totalRemainingHours / Math.max(1, planning.weeklyCapacityHours)) * 100)}%` }}
                           />
                         </div>
                       </div>
@@ -139,7 +140,7 @@ export default async function DashboardPage() {
 
           {/* METRICS ROW (Academic, Projects, Certs) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* Academic Status */}
             <Link href="/academic" className="rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-muted-foreground/35 block cursor-pointer">
               <div className="flex items-center gap-3 mb-4">
@@ -161,9 +162,9 @@ export default async function DashboardPage() {
                     <span className="text-foreground">{academicStats.creditsCompleted} / {academicStats.creditsTotal}</span>
                   </div>
                   <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(100, (academicStats.creditsCompleted / academicStats.creditsTotal) * 100)}%` }} 
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (academicStats.creditsCompleted / academicStats.creditsTotal) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -195,9 +196,9 @@ export default async function DashboardPage() {
                     <span className="text-foreground">{projectStats.healthScore}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500" 
-                      style={{ width: `${projectStats.healthScore}%` }} 
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${projectStats.healthScore}%` }}
                     />
                   </div>
                 </div>
@@ -229,9 +230,9 @@ export default async function DashboardPage() {
                     <span className="text-foreground">{certStats.readinessScore}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500" 
-                      style={{ width: `${certStats.readinessScore}%` }} 
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${certStats.readinessScore}%` }}
                     />
                   </div>
                 </div>
@@ -250,7 +251,7 @@ export default async function DashboardPage() {
 
         {/* RIGHT COLUMN: 30% */}
         <div className="w-full lg:w-[30%] space-y-8">
-          
+
           {/* AI Insights */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
             <div className="flex items-center gap-3 mb-5">
@@ -259,7 +260,7 @@ export default async function DashboardPage() {
               </div>
               <h3 className="text-sm font-bold text-foreground">AI Intelligence</h3>
             </div>
-            
+
             <div className="space-y-3 mb-6">
               {focusItems.length === 0 ? (
                 <p className="text-xs text-muted-foreground font-medium italic">No immediate risks detected in your curriculum.</p>
@@ -273,8 +274,8 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            <Link 
-              href="/assistant" 
+            <Link
+              href="/assistant"
               className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition-colors"
             >
               Ask Assistant <ChevronRight className="h-4 w-4" />
@@ -289,7 +290,7 @@ export default async function DashboardPage() {
               </div>
               <h3 className="text-sm font-bold text-foreground">AI Automation</h3>
             </div>
-            
+
             <div className="space-y-3 mb-6">
               <div className="flex justify-between items-center text-xs font-bold pb-2 border-b border-border">
                 <span className="text-muted-foreground">Pending Proposals</span>
@@ -297,7 +298,7 @@ export default async function DashboardPage() {
                   {data.automationStats.pendingCount}
                 </span>
               </div>
-              
+
               <div className="space-y-2">
                 {data.automationStats.recentLogs.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground font-semibold italic">No recent execution logs.</p>
@@ -312,8 +313,8 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <Link 
-              href="/automation" 
+            <Link
+              href="/automation"
               className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition-colors"
             >
               Open Action Center <ChevronRight className="h-4 w-4" />
@@ -343,7 +344,7 @@ export default async function DashboardPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">{event.type}</span>
                       <span className="text-[9px] font-semibold text-muted-foreground">
-                        {new Date(event.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
+                        {new Date(event.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
                   </div>

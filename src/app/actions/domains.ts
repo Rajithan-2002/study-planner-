@@ -45,6 +45,9 @@ export async function createDomain(name: string) {
     }
     
     revalidatePath('/')
+    revalidatePath('/certifications')
+    revalidatePath('/projects')
+    revalidatePath('/knowledge')
     return { success: true, data }
   } catch (err: any) {
     console.error('createDomain exception:', err)

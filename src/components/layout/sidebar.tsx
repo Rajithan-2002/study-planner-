@@ -18,9 +18,11 @@ import {
   Inbox,
   Brain,
   Activity,
-  Target
+  Target,
+  LogOut
 } from 'lucide-react'
 import { getUserProfile } from '@/app/actions/profile'
+import { signOut } from '@/app/auth/actions'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -71,10 +73,9 @@ export function Sidebar() {
   }
 
   return (
-    <div 
-      className={`hidden md:flex h-full flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out relative z-20 ${
-        isCollapsed ? 'w-20' : 'w-[280px]'
-      }`}
+    <div
+      className={`hidden md:flex h-full flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out relative z-20 ${isCollapsed ? 'w-20' : 'w-[280px]'
+        }`}
     >
       {/* Brand Header */}
       <div className="flex h-20 items-center justify-between px-6 border-b border-sidebar-border">
@@ -88,7 +89,7 @@ export function Sidebar() {
             </h1>
           )}
         </div>
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="p-1.5 rounded-lg border border-sidebar-border bg-sidebar hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
@@ -106,13 +107,11 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`group flex items-center rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 ${
-                  isCollapsed ? 'justify-center' : 'gap-3'
-                } ${
-                  isActive
+                className={`group flex items-center rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 ${isCollapsed ? 'justify-center' : 'gap-3'
+                  } ${isActive
                     ? 'bg-sidebar-accent text-primary border border-sidebar-border shadow-xs'
                     : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-                }`}
+                  }`}
                 title={isCollapsed ? item.name : undefined}
               >
                 <Icon className={`h-5 w-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-105' : 'group-hover:scale-105'}`} />
@@ -125,7 +124,7 @@ export function Sidebar() {
 
       {/* User Profile */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar">
-        <button 
+        <button
           onClick={() => router.push('/settings')}
           className={`flex items-center w-full text-left p-2 rounded-xl hover:bg-sidebar-accent transition-colors cursor-pointer group ${isCollapsed ? 'justify-center' : 'gap-3'}`}
           title="System Settings"
@@ -143,6 +142,17 @@ export function Sidebar() {
             </div>
           )}
         </button>
+
+        <form action={signOut} className="mt-2">
+          <button
+            type="submit"
+            title="Sign out"
+            className={`flex items-center w-full p-2 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-red-500 transition-colors cursor-pointer ${isCollapsed ? 'justify-center' : 'gap-3'}`}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!isCollapsed && <span className="text-xs font-semibold">Sign out</span>}
+          </button>
+        </form>
       </div>
     </div>
   )

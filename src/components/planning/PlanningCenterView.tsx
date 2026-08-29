@@ -13,6 +13,8 @@ import {
   createFixedCommitment, deleteFixedCommitment, createAvailabilityException, 
   deleteAvailabilityException, runPlanningSimulationAction
 } from '@/app/actions/planning'
+import { formatHours } from '@/lib/utils/time'
+import { useToast } from '@/components/ui/Toast'
 
 interface PlanningCenterViewProps {
   dailyPlan: any
@@ -44,6 +46,7 @@ export function PlanningCenterView({
   projects
 }: PlanningCenterViewProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'capacity' | 'habits' | 'fixed' | 'goals' | 'simulator' | 'history'>('today')
 
@@ -254,7 +257,7 @@ export function PlanningCenterView({
       }
 
       if (!finalDeadline) {
-        alert('Please select an entity with a deadline or specify a custom deadline date.')
+        toast('Please select an entity with a deadline or specify a custom deadline date.', 'error')
         setSimulating(false)
         return
       }
@@ -324,11 +327,11 @@ export function PlanningCenterView({
           <div className="flex gap-4">
             <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-center">
               <span className="block text-[10px] uppercase font-bold text-slate-400">Weekly Capacity</span>
-              <span className="text-lg font-black text-indigo-400">{weeklyPlan.weeklyCapacityHours} hrs</span>
+              <span className="text-lg font-black text-indigo-400">{formatHours(weeklyPlan.weeklyCapacityHours)}</span>
             </div>
             <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-center">
               <span className="block text-[10px] uppercase font-bold text-slate-400">Today Allocations</span>
-              <span className="text-lg font-black text-emerald-400">{(dailyPlan.totalPlannedMinutes / 60).toFixed(1)} hrs</span>
+              <span className="text-lg font-black text-emerald-400">{formatHours(dailyPlan.totalPlannedMinutes / 60)}</span>
             </div>
           </div>
         </div>
@@ -377,7 +380,7 @@ export function PlanningCenterView({
               onClick={() => setActiveTab(t.id as any)}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                 active 
-                  ? 'bg-indigo-650 text-white shadow-md' 
+                  ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' 
                   : 'bg-slate-50 dark:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -484,7 +487,7 @@ export function PlanningCenterView({
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs font-black text-slate-900 dark:text-white">{dist.name}</span>
                         <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-                          {dist.weekly_allocated_hours}h / week
+                          {formatHours(dist.weekly_allocated_hours)} / week
                         </span>
                       </div>
                       <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -494,7 +497,7 @@ export function PlanningCenterView({
                         />
                       </div>
                       <span className="block text-[10px] text-slate-400 mt-1 font-semibold">
-                        Remaining: {dist.remaining_hours}h
+                        Remaining: {formatHours(dist.remaining_hours)}
                       </span>
                     </div>
                   ))
@@ -1221,7 +1224,7 @@ export function PlanningCenterView({
                     <div className="grid grid-cols-2 gap-3 text-center">
                       <div className="p-3 bg-white dark:bg-slate-850 rounded-2xl shadow-sm border border-slate-150">
                         <span className="block text-[9px] uppercase font-bold text-slate-400">Weekly Target</span>
-                        <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{simulationResult.weeklyHoursRequired} hrs</span>
+                        <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{formatHours(simulationResult.weeklyHoursRequired)}</span>
                       </div>
                       <div className="p-3 bg-white dark:bg-slate-850 rounded-2xl shadow-sm border border-slate-150">
                         <span className="block text-[9px] uppercase font-bold text-slate-400">Feasible?</span>

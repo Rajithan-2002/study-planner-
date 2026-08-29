@@ -8,6 +8,7 @@ import { DecisionPlatformEngine, DecisionSearchAdapter, DecisionTimelineAdapter 
 import { RAGPlatformEngine, RAGSearchAdapter, RAGTimelineAdapter } from '../rag/platform-engine'
 import { MemoryPlatformEngine, MemorySearchAdapter, MemoryTimelineAdapter } from '../memory/platform-engine'
 import { ActionPlatformEngine, ActionSearchAdapter, ActionTimelineAdapter } from '../actions/platform-engine'
+import { GoalSearchAdapter, ReflectionSearchAdapter, WorkSessionSearchAdapter, RecurringActivitySearchAdapter } from './custom-adapters'
 
 class PlatformRegistry {
   private engines: Map<string, IPlatformEngine> = new Map()
@@ -35,6 +36,10 @@ class PlatformRegistry {
     this.registerSearchAdapter(new RAGSearchAdapter())
     this.registerSearchAdapter(new MemorySearchAdapter())
     this.registerSearchAdapter(new ActionSearchAdapter())
+    this.registerSearchAdapter(new GoalSearchAdapter())
+    this.registerSearchAdapter(new ReflectionSearchAdapter())
+    this.registerSearchAdapter(new WorkSessionSearchAdapter())
+    this.registerSearchAdapter(new RecurringActivitySearchAdapter())
 
     this.registerTimelineAdapter(new AcademicTimelineAdapter())
     this.registerTimelineAdapter(new ProjectTimelineAdapter())

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient, getCurrentUserId } from '@/utils/supabase/server'
+import { createClient, getCurrentUserId, logActivity } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { calculateOverallMetrics } from '@/lib/academic/engine'
 import { MASTER_MIT_SEMESTER_2_TIMETABLE, getTimetableForDegree } from '@/lib/academic/timetable-data'
@@ -700,7 +700,7 @@ export async function addModuleResult(formData: FormData) {
     // Verify ownership of the referenced module
     const { data: moduleData, error: modErr } = await supabase
       .from('modules')
-      .select('id')
+      .select('id, code, name')
       .eq('id', module_id)
       .eq('user_id', userId)
       .single()
@@ -722,7 +722,29 @@ export async function addModuleResult(formData: FormData) {
       return { success: false, error: error.message || 'Failed to add module result' }
     }
 
+    // Write activity log & timeline event
+    const componentStr = component || 'Assessment'
+    const marksStr = marks !== null ? `(${marks} marks)` : ''
+    await logActivity(`ADDED_GRADE_${moduleData.code}_${componentStr.toUpperCase().replace(/\s+/g, '_')}`, 'MODULE', module_id)
+    await supabase.from('life_events').insert({
+      user_id: userId,
+      title: `Result: ${moduleData.code} - ${componentStr} grade ${grade || ''} ${marksStr}`,
+      type: 'ASSIGNMENT',
+      event_date: new Date().toISOString().split('T')[0],
+      importance: 40
+    })
+
+    await syncAcademicMetrics(userId)
+    try {
+      const { getRecommendations } = await import('@/app/actions/decision')
+      await getRecommendations('BALANCED')
+    } catch (decErr) {
+      console.error('Failed to trigger decision engine update:', decErr)
+    }
+
     revalidatePath(`/academic/module/${module_id}`)
+    revalidatePath('/academic')
+    revalidatePath('/')
     return { success: true, data }
   } catch (err: any) {
     console.error('addModuleResult exception:', err)
@@ -831,7 +853,24 @@ export async function updateCalculatedCgpa(cgpa: number, completedModulesPayload
       }
     }
 
+    // Write activity log & timeline event
+    await logActivity(`UPDATE_GPA_${cgpa.toFixed(2).replace('.', '_')}`, 'USER', userId)
+    await supabase.from('life_events').insert({
+      user_id: userId,
+      title: `CGPA updated to ${cgpa.toFixed(2)}`,
+      type: 'EXAM',
+      event_date: new Date().toISOString().split('T')[0],
+      importance: 80
+    })
+
     await syncAcademicMetrics(userId)
+    try {
+      const { getRecommendations } = await import('@/app/actions/decision')
+      await getRecommendations('BALANCED')
+    } catch (decErr) {
+      console.error('Failed to trigger decision engine update:', decErr)
+    }
+
     revalidatePath('/academic')
     revalidatePath('/academic/roadmap')
     revalidatePath('/')

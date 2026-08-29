@@ -34,7 +34,7 @@ export interface CapacityPreferences {
 }
 
 export class PlanningCapacityEngine {
-  
+
   // 1. Fetch capacity preferences
   static async getCapacityPreferences(userId: string): Promise<CapacityPreferences> {
     const supabase = await createClient()
@@ -329,7 +329,7 @@ export class PlanningCapacityEngine {
     }
     const finalCapacityHours = baseCapacityHours * capacityMultiplier
     let capacityMinutes = finalCapacityHours * 60
-    
+
     const allocations: any[] = []
     let totalPlannedMinutes = 0
 
@@ -358,6 +358,79 @@ export class PlanningCapacityEngine {
       })
     }
     capacityMinutes = Math.max(0, capacityMinutes - totalPlannedMinutes)
+
+    // LAYER 1.5: Timetable Lectures / Classes
+    let todaysClasses: any[] = []
+    const { data: activeSemesters } = await supabase.from('academic_semesters').select('id').eq('user_id', userId)
+    if (activeSemesters && activeSemesters.length > 0) {
+      const { data: modules } = await supabase.from('modules').select('id, name, code').in('semester_id', activeSemesters.map(s => s.id)).eq('user_id', userId)
+      if (modules && modules.length > 0) {
+        const todayWeekday = today.toLocaleDateString('en-US', { weekday: 'long' })
+        const { data: sessionsToday } = await supabase
+          .from('timetable_sessions')
+          .select('*')
+          .in('module_id', modules.map(m => m.id))
+          .eq('day', todayWeekday)
+          
+        if (sessionsToday && sessionsToday.length > 0) {
+          todaysClasses = sessionsToday.map(session => {
+            const mod = modules.find(m => m.id === session.module_id)
+            return {
+              id: session.id,
+              name: mod ? `${mod.code} - ${mod.name}` : session.code || 'Lecture',
+              start_time: session.start_time,
+              end_time: session.end_time,
+              session_type: session.session_type,
+              location: session.location
+            }
+          })
+        }
+      }
+    }
+
+    // Fallback to Master Timetable if database sessions are empty
+    if (todaysClasses.length === 0) {
+      const { data: user } = await supabase.from('users').select('degree_name').eq('id', userId).maybeSingle()
+      const { getTimetableForDegree } = await import('@/lib/academic/timetable-data')
+      const masterTimetable = getTimetableForDegree(user?.degree_name)
+      const todayWeekday = today.toLocaleDateString('en-US', { weekday: 'long' })
+      todaysClasses = masterTimetable
+        .filter(m => m.day === todayWeekday)
+        .map((item, index) => ({
+          id: `master-today-${index}`,
+          name: `${item.code} - ${item.name}`,
+          start_time: item.start_time,
+          end_time: item.end_time,
+          session_type: item.session_type,
+          location: item.location
+        }))
+    }
+
+    if (todaysClasses.length > 0) {
+      todaysClasses.forEach(classItem => {
+        let mins = 120 // default 2 hours
+        if (classItem.start_time && classItem.end_time) {
+          try {
+            const [sh, sm] = classItem.start_time.split(':').map(Number)
+            const [eh, em] = classItem.end_time.split(':').map(Number)
+            mins = (eh * 60 + em) - (sh * 60 + sm)
+          } catch (e) {
+            // Keep default
+          }
+        }
+        
+        allocations.push({
+          id: classItem.id,
+          name: classItem.name,
+          type: 'LECTURE',
+          allocated_minutes: mins,
+          reason: `Lecture: ${classItem.session_type || 'Class'} at ${classItem.location || 'University'}`,
+          energy_zone: 'anytime'
+        })
+        totalPlannedMinutes += mins
+        capacityMinutes = Math.max(0, capacityMinutes - mins)
+      })
+    }
 
     // LAYER 2: Recurring Activities (subtracting skipped logs)
     const { data: recurring } = await supabase
@@ -457,7 +530,7 @@ export class PlanningCapacityEngine {
   static async buildWeeklyPlan(userId: string): Promise<any> {
     const capacities = await this.getCapacityPreferences(userId)
     const items = await this.calculateRemainingWork(userId)
-    const baseWeeklyCapacity = 
+    const baseWeeklyCapacity =
       capacities.monday_hours + capacities.tuesday_hours + capacities.wednesday_hours +
       capacities.thursday_hours + capacities.friday_hours + capacities.saturday_hours + capacities.sunday_hours
 
@@ -531,8 +604,8 @@ export class PlanningCapacityEngine {
 
   // 9. Run planning simulation ("Can I finish AWS before November?")
   static async runPlanningSimulation(
-    userId: string, 
-    estimatedHours: number, 
+    userId: string,
+    estimatedHours: number,
     deadlineStr: string,
     weeklyAdjust: number = 0
   ): Promise<{
@@ -545,20 +618,20 @@ export class PlanningCapacityEngine {
   }> {
     const capacities = await this.getCapacityPreferences(userId)
     const activeItems = await this.calculateRemainingWork(userId)
-    
+
     const today = new Date()
     const deadline = new Date(deadlineStr)
     const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-    const baseWeeklyCapacity = 
+    const baseWeeklyCapacity =
       capacities.monday_hours + capacities.tuesday_hours + capacities.wednesday_hours +
       capacities.thursday_hours + capacities.friday_hours + capacities.saturday_hours + capacities.sunday_hours
-    
+
     const weeklyCapacity = baseWeeklyCapacity + weeklyAdjust
-    
+
     const currentRemainingHours = activeItems.reduce((sum, item) => sum + item.remaining_hours, 0)
     const totalRemainingHoursIncludingNew = currentRemainingHours + estimatedHours
-    
+
     const weeksRemaining = Math.max(0.1, daysLeft / 7)
     const weeklyHoursRequired = Math.round((totalRemainingHoursIncludingNew / weeksRemaining) * 10) / 10
 
@@ -595,8 +668,8 @@ export class PlanningCapacityEngine {
   }>> {
     const capacities = await this.getCapacityPreferences(userId)
     const items = await this.calculateRemainingWork(userId)
-    
-    const weeklyCapacity = 
+
+    const weeklyCapacity =
       capacities.monday_hours + capacities.tuesday_hours + capacities.wednesday_hours +
       capacities.thursday_hours + capacities.friday_hours + capacities.saturday_hours + capacities.sunday_hours
     const conflicts: any[] = []
