@@ -75,8 +75,7 @@ Current Execution Metadata:
   static buildFinalPrompt(session: AISession): string {
     const system = this.getBaseSystemPrompt(session)
     const contextData = JSON.stringify(session.context, null, 2)
-    const executedTools = session.toolsExecuted.map(t => `- Tool "${t.name}" (Success: ${t.success}): ${JSON.stringify(t.output)}`).join('\n')
-    
+
     let decisionBlock = ''
     if (session.context.decision) {
       const dec = session.context.decision
@@ -110,12 +109,9 @@ ${decisionBlock}
 
 ${actionExecutionBlock}
 
-EXECUTED TOOL OUTPUTS:
-${executedTools || 'No tools executed.'}
-
 USER REQUEST:
 "${session.context.raw_query}"
 
-Please respond to the user query based on the above system state, context logs, decision summaries, and tool executions.`
+Please respond to the user query based on the above system state, context logs, and decision summaries.`
   }
 }
