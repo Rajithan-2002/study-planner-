@@ -5,6 +5,7 @@ import { Brain, Search, Plus, Filter, Trash2, Archive, RotateCcw, Edit2, Loader2
 import { createMemoryAction, deleteMemoryAction, archiveMemoryAction, updateMemoryAction, generateReflectionAction } from '@/app/actions/memory'
 import { Button } from '@/components/ui/button'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
+import { useToast } from '@/components/ui/Toast'
 
 interface MemoryHubProps {
   memories: any[]
@@ -21,6 +22,7 @@ export function MemoryHubView({
   preferences,
   summary
 }: MemoryHubProps) {
+  const { toast } = useToast()
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'explorer' | 'graph' | 'reflections' | 'timeline'>('overview')
   const [isPending, startTransition] = useTransition()
   
@@ -87,7 +89,7 @@ export function MemoryHubView({
         setNewMemory({ title: '', content: '', type: 'CUSTOM' })
         showSuccess('Memory card recorded successfully!')
       } else {
-        alert(res.error || 'Failed to record memory.')
+        toast(res.error || 'Failed to record memory.', 'error')
       }
     })
   }
@@ -100,7 +102,7 @@ export function MemoryHubView({
         setEditingMemory(null)
         showSuccess('Memory card updated successfully!')
       } else {
-        alert(res.error || 'Failed to update memory.')
+        toast(res.error || 'Failed to update memory.', 'error')
       }
     })
   }

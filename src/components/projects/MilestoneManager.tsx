@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useCallback, useState, useTransition, useEffect } from 'react'
 import { CheckCircle2, Circle, Plus, Trash2, Loader2, Calendar, Flag } from 'lucide-react'
 import { getProjectMilestones, createMilestone, toggleMilestoneStatus, deleteMilestone } from '@/app/actions/milestones'
 import { calculateMilestoneProgress } from '@/lib/project/engine'
@@ -18,16 +18,16 @@ export function MilestoneManager({ projectId, tasks = [] }: MilestoneManagerProp
   const [newDueDate, setNewDueDate] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     setIsLoading(true)
     const data = await getProjectMilestones(projectId)
     setMilestones(data || [])
     setIsLoading(false)
-  }
+  }, [projectId])
 
   useEffect(() => {
     fetchMilestones()
-  }, [projectId])
+  }, [fetchMilestones])
 
   const handleToggle = (milestoneId: string, currentStatus: string) => {
     startTransition(async () => {

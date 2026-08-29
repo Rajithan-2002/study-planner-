@@ -65,11 +65,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // ─── Inject User ID Header for Downstream Use ────────────────────────────
-  if (user) {
-    response.headers.set('x-user-id', user.id)
-  }
-
   return response
 }
 

@@ -21,8 +21,8 @@ const FEATURE_PROMPTS = [
     badge: 'Recommended',
     color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
     title: 'Generate Daily Plan',
-    desc: 'Propose an optimized study & focus schedule based on your active sprint.',
-    prompt: 'Generate an optimized daily plan for today based on my active sprint and priorities.'
+    desc: 'Propose an optimized study & focus schedule based on your priorities.',
+    prompt: 'Generate an optimized daily plan for today based on my priorities.'
   },
   {
     icon: Activity,
@@ -30,7 +30,7 @@ const FEATURE_PROMPTS = [
     color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
     title: 'Simulate Completion Deadline',
     desc: 'Forecast exam readiness and milestone completion dates.',
-    prompt: 'Simulate: Can I finish SC-500 Exam Prep before August 21st?'
+    prompt: 'Simulate: can I finish my most urgent certification before its exam date?'
   },
   {
     icon: Target,
@@ -51,12 +51,12 @@ const FEATURE_PROMPTS = [
 ]
 
 const QUICK_ACTIONS = [
-  { label: '🏖️ Propose 7-Day Sprint Plan', prompt: 'Propose daily plan using 7-Day Leave Sprint strategy' },
+  { label: '📅 Propose Today\'s Plan', prompt: 'Propose a balanced daily plan for today' },
   { label: '⚡ Check Weekly Capacity', prompt: 'Generate weekly capacity review summary' },
-  { label: '📌 Add Critical Task', prompt: 'Add Task: SC-500 Practice Test, High Priority' },
-  { label: '📜 Add Certification', prompt: 'Add Certification: AWS Cloud Practitioner, 30 hours' },
+  { label: '📌 Add Task', prompt: 'Add Task: Practice exam questions, High Priority, due tomorrow' },
+  { label: '📜 Add Certification', prompt: 'Add Certification: Cloud Practitioner, 30 hours' },
   { label: '🎓 Check Campus Lectures', prompt: 'What are my university lectures for today?' },
-  { label: '⏱️ Log Study Session', prompt: 'Log study session: SC-500 Prep, 180 minutes, COMPLETED' }
+  { label: '⏱️ Log Study Session', prompt: 'Log study session: exam prep, 60 minutes, COMPLETED' }
 ]
 
 export default function AssistantPage() {

@@ -63,7 +63,7 @@ export function SchedulerHubView({
   const [isPending, startTransition] = useTransition()
   
   // Strategy & preferences states
-  const [activeStrategy, setActiveStrategy] = useState('LEAVE_7_DAY')
+  const [activeStrategy, setActiveStrategy] = useState('BALANCED')
   const [showPrefs, setShowPrefs] = useState(false)
   const [isAddingBlock, setIsAddingBlock] = useState(false)
 
@@ -71,14 +71,10 @@ export function SchedulerHubView({
   const [isCreatingSpecial, setIsCreatingSpecial] = useState(false)
   const [specialPlans, setSpecialPlans] = useState<any[]>([])
   const [specialForm, setSpecialForm] = useState({
-    name: 'Next 7 Days Special Plan',
-    dailyHours: 8,
+    name: 'Custom Study Plan',
+    dailyHours: 6,
     tasks: [
-      { name: 'SC-500 Exam Prep', hours: 3, note: 'Target 40h material before Aug 21' },
-      { name: 'Java Study', hours: 2, note: '10h Video Course' },
-      { name: 'AWS Cloud Practitioner', hours: 1, note: 'Cloud Fundamentals' },
-      { name: 'TryHackMe SOC Path', hours: 1, note: 'SOC Analyst Track' },
-      { name: 'CRTA', hours: 1, note: 'Red Team Analyst' }
+      { name: '', hours: 2, note: '' }
     ]
   })
 
@@ -242,9 +238,7 @@ export function SchedulerHubView({
               onChange={handleStrategyChange}
               className="bg-transparent text-xs font-extrabold text-emerald-600 dark:text-emerald-400 outline-none cursor-pointer truncate max-w-[260px]"
             >
-              <option value="LEAVE_7_DAY">🏖️ 7-Day Leave Sprint (8.5h Plan)</option>
-              <option value="NORMAL_DAY">🏫 Normal Day (Campus + Post-Campus)</option>
-              <option value="WEEKEND_MODE">⚡ Weekend Mode (10-Hour Intensive)</option>
+              <option value="BALANCED">⚖️ Balanced (capacity-based)</option>
               {specialPlans.map(p => (
                 <option key={p.id} value={`SPECIAL_${p.id}`}>
                   ✨ Special: {p.plan_data?.name || 'Custom Plan'} ({p.plan_data?.dailyHours || 8}h/day)

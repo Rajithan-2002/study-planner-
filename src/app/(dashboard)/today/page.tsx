@@ -35,22 +35,6 @@ export default async function TodayPage() {
         </div>
       </div>
 
-      {/* ACTIVE LEAVE SPRINT BANNER */}
-      {data.isLeaveSprintActive && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold flex items-center justify-between animate-in fade-in duration-200">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🏖️</span>
-            <div>
-              <span className="font-extrabold uppercase tracking-wider block text-foreground">7-Day Leave Sprint Active (July 20 – July 26)</span>
-              <span className="text-muted-foreground font-medium text-[11px]">Campus lectures suspended. High-Productivity ~8.5h/day study blocks active.</span>
-            </div>
-          </div>
-          <span className="px-3 py-1 bg-amber-500 text-black font-black rounded-lg text-[10px] uppercase shrink-0">
-            Leave Mode Active
-          </span>
-        </div>
-      )}
-
       {/* UNIFIED 2-COLUMN ENTERPRISE DASHBOARD HUB */}
       <SchedulerHubView
         todaysClasses={data.todaysClasses}

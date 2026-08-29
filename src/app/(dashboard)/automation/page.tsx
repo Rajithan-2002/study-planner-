@@ -23,10 +23,11 @@ export default async function AutomationPage() {
     .in('status', ['COMPLETED', 'FAILED', 'ROLLED_BACK'])
     .order('created_at', { ascending: false })
 
-  // 3. Fetch execution logs
+  // 3. Fetch execution logs (scoped to this user's actions)
   const { data: executionLogs } = await supabase
     .from('action_execution_logs')
-    .select('*')
+    .select('*, ai_actions!inner(user_id)')
+    .eq('ai_actions.user_id', userId)
     .order('created_at', { ascending: false })
 
   return (

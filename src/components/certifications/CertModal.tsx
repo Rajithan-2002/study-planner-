@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, Award, Sparkles, Calendar, Clock, Tag, Briefcase } from 'lucide-react'
 import { createCertification, updateCertification, createCertFromTemplate } from '@/app/actions/certifications'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/Toast'
 
 interface CertModalProps {
   isOpen: boolean
@@ -14,6 +15,7 @@ interface CertModalProps {
 
 export function CertModal({ isOpen, onClose, domains, editingCert }: CertModalProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [domainsList, setDomainsList] = useState(domains)
 
   useEffect(() => {
@@ -34,10 +36,10 @@ export function CertModal({ isOpen, onClose, domains, editingCert }: CertModalPr
           setFormData(prev => ({ ...prev, domain_id: res.data.id }))
         }
       } else {
-        alert(res?.error || 'Failed to create domain.')
+        toast(res?.error || 'Failed to create domain.', 'error')
       }
     } catch (e: any) {
-      alert(e.message || 'Error creating domain inline.')
+      toast(e.message || 'Error creating domain inline.', 'error')
     }
   }
 

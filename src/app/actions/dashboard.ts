@@ -222,13 +222,10 @@ export async function getDashboardData() {
 
     const { data: recentLogs } = await supabase
       .from('action_execution_logs')
-      .select('step_name, status, created_at')
+      .select('step_name, status, created_at, ai_actions!inner(user_id)')
+      .eq('ai_actions.user_id', userId)
       .order('created_at', { ascending: false })
       .limit(3)
-
-    // 11. Fetch User Instructions & Active Sprint
-    const { getUserInstructions } = await import('@/app/actions/instructions')
-    const instructions = await getUserInstructions()
 
     return {
       todaysClasses,
@@ -266,8 +263,7 @@ export async function getDashboardData() {
         averageCompletionProbability,
         dailyPlanAllocations: dailyPlan.allocations,
         conflicts
-      },
-      instructions
+      }
     }
   } catch (err: any) {
     console.error('getDashboardData exception:', err)

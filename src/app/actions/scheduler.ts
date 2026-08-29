@@ -272,12 +272,12 @@ export async function getSpecialPlans() {
 }
 
 // PROPOSE & ACCEPT STRATEGY PLANS
-export async function proposeDailyPlan(planDateStr: string, strategy: string = 'LEAVE_7_DAY', skipRevalidate = false) {
+export async function proposeDailyPlan(planDateStr: string, strategy: string = 'BALANCED', skipRevalidate = false) {
   try {
     const supabase = await createClient()
     const userId = await getCurrentUserId()
 
-    // Fetch preferences
+    // 1. Fetch preferences
     let { data: prefs } = await supabase.from('user_schedule_preferences').select('*').eq('user_id', userId).maybeSingle()
     if (!prefs) {
       prefs = {
@@ -292,63 +292,19 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
 
     let proposedTimeline: any[] = []
 
-    if (strategy === 'LEAVE_7_DAY' || strategy === 'SPECIAL_LEAVE_7_DAY') {
-      // 7-Day Leave High-Productivity Sprint (~8.5 hours total)
-      const leaveBlocks = [
-        { name: 'SC-500 Exam Prep (3h)', type: 'STUDY', duration: 180, time: '09:00', note: 'Target 40h material before Aug 21' },
-        { name: 'Java Study - 10h Course (2h)', type: 'STUDY', duration: 120, time: '12:30', note: 'Finish 10h video course during leave' },
-        { name: 'AWS Cloud Practitioner (1h)', type: 'STUDY', duration: 60, time: '14:40', note: '1h/day leave (30m post-leave)' },
-        { name: 'TryHackMe SOC Path (1h)', type: 'DEEP_WORK', duration: 60, time: '15:50', note: 'SOC Analyst Track' },
-        { name: 'CRTA (Certified Red Team Analyst) (1h)', type: 'DEEP_WORK', duration: 60, time: '17:00', note: 'Red Team Track' },
-        { name: 'CLLMSP (30m)', type: 'STUDY', duration: 30, time: '18:10', note: '30m Daily Consistent' },
-      ]
-
-      proposedTimeline = leaveBlocks.map(b => {
-        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
-        return {
-          title: b.name,
-          type: b.type,
-          status: 'PENDING',
-          duration_minutes: b.duration,
-          is_locked: false,
-          scheduled_at: scheduledTime.toISOString(),
-          reason: b.note,
-          energy_zone: 'HIGH'
-        }
-      })
-    } else if (strategy === 'WEEKEND_MODE') {
-      // 10-Hour Weekend Study Plan
-      const weekendBlocks = [
-        { name: 'SC-500 Intensive Exam Focus (4h)', type: 'STUDY', duration: 240, time: '08:00', note: 'Weekend Deep Study (4h target)' },
-        { name: 'AWS Cloud Practitioner (2h)', type: 'STUDY', duration: 120, time: '13:00', note: 'Weekend Cloud Module (2h target)' },
-        { name: 'TryHackMe & CRTA Lab Practice (2.5h)', type: 'DEEP_WORK', duration: 150, time: '15:30', note: 'Red Team & SOC Hands-on Labs' },
-        { name: 'CLLMSP (1.5h)', type: 'STUDY', duration: 90, time: '18:30', note: 'Extended CLLMSP Review' },
-      ]
-
-      proposedTimeline = weekendBlocks.map(b => {
-        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
-        return {
-          title: b.name,
-          type: b.type,
-          status: 'PENDING',
-          duration_minutes: b.duration,
-          is_locked: false,
-          scheduled_at: scheduledTime.toISOString(),
-          reason: b.note,
-          energy_zone: 'HIGH'
-        }
-      })
-    } else if (strategy.startsWith('SPECIAL_')) {
-      // Custom Special Plan created by user
+    if (strategy.startsWith('SPECIAL_')) {
+      // Custom Special Plan created by the user, stored in generated_plans
       const specialPlanId = strategy.replace('SPECIAL_', '')
       const { data: specPlan } = await supabase
         .from('generated_plans')
         .select('*')
         .eq('id', specialPlanId)
+        .eq('user_id', userId)
         .maybeSingle()
 
       if (specPlan && specPlan.plan_data && Array.isArray(specPlan.plan_data.tasks)) {
-        let currentHour = 9
+        const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 9
+        let currentHour = baseHour
         let currentMin = 0
 
         proposedTimeline = specPlan.plan_data.tasks.map((t: any) => {
@@ -375,25 +331,34 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
         })
       }
     } else {
-      // NORMAL_DAY: Post-campus routine or capacity engine
-      const normalBlocks = [
-        { name: 'SC-500 Exam Focus (2h)', type: 'STUDY', duration: 120, time: '18:00', note: 'Post-campus SC-500 Priority' },
-        { name: 'AWS Cloud Practitioner (30m)', type: 'STUDY', duration: 30, time: '20:15', note: 'Daily 30m Cloud' },
-        { name: 'CLLMSP (30m)', type: 'STUDY', duration: 30, time: '20:50', note: 'Daily 30m CLLMSP' },
-        { name: 'TryHackMe / CRTA Track (1h)', type: 'DEEP_WORK', duration: 60, time: '21:30', note: 'Alternating Cyber Track' },
-      ]
+      // Default: capacity-engine-driven daily study plan
+      const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
 
-      proposedTimeline = normalBlocks.map(b => {
-        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
+      const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 8
+      let currentHour = baseHour
+      let currentMin = 0
+
+      proposedTimeline = dailyPlan.allocations.map((alloc) => {
+        const scheduledTime = new Date(`${planDateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`)
+
+        const durationMins = alloc.allocated_minutes
+        currentMin += durationMins
+        if (currentMin >= 60) {
+          currentHour += Math.floor(currentMin / 60)
+          currentMin = currentMin % 60
+        }
+
         return {
-          title: b.name,
-          type: b.type,
+          title: `${alloc.name} [${alloc.type}]`,
+          type: alloc.type === 'PROJECT' ? 'PROJECT' : alloc.type === 'CERTIFICATION' ? 'STUDY' : 'DEEP_WORK',
           status: 'PENDING',
-          duration_minutes: b.duration,
+          duration_minutes: durationMins,
           is_locked: false,
+          related_entity_type: alloc.type,
+          related_entity_id: alloc.id,
           scheduled_at: scheduledTime.toISOString(),
-          reason: b.note,
-          energy_zone: 'MEDIUM'
+          reason: alloc.reason,
+          energy_zone: alloc.energy_zone
         }
       })
     }

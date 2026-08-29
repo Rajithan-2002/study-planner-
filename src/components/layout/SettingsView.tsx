@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { User, Settings, Clock, Brain, Settings2, Loader2, Sparkles, AlertTriangle, ShieldCheck, Moon, Sun, Database } from 'lucide-react'
+import { User, Settings, Clock, Brain, Settings2, Loader2, Sparkles, AlertTriangle, ShieldCheck, Moon, Sun, Database, LogOut } from 'lucide-react'
 import { updateUserProfile } from '@/app/actions/profile'
+import { signOut } from '@/app/auth/actions'
 import { saveSchedulerPreferences } from '@/app/actions/scheduler'
 import { updateUserPreferencesAction } from '@/app/actions/memory'
 import { seedMasterCurriculum } from '@/app/actions/academic'
@@ -536,7 +537,7 @@ export function SettingsView({
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">Preload Master Curriculum</h4>
                   <p className="text-xs font-semibold text-slate-400">Populate the master course catalog to initialize roadmap options.</p>
                 </div>
-                
+
                 <Button
                   onClick={() => setIsSeedModalOpen(true)}
                   className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-2 cursor-pointer"
@@ -544,6 +545,32 @@ export function SettingsView({
                   <Database className="h-4 w-4" />
                   Seed DB Catalog
                 </Button>
+              </div>
+            </div>
+
+            {/* Session */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white pb-3 border-b dark:border-slate-800 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-indigo-500" />
+                Session
+              </h3>
+
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Sign out</h4>
+                  <p className="text-xs font-semibold text-slate-400">End your session on this device and return to the login screen.</p>
+                </div>
+
+                <form action={signOut}>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="h-10 px-4 rounded-xl flex items-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/20 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </form>
               </div>
             </div>
           </div>

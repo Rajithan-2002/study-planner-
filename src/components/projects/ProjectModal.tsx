@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, Briefcase, Sparkles, Calendar, Clock, Tag, Target } from 'lucide-react'
 import { createProject, updateProject, createProjectFromTemplate } from '@/app/actions/projects'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/Toast'
 
 interface ProjectModalProps {
   isOpen: boolean
@@ -14,6 +15,7 @@ interface ProjectModalProps {
 
 export function ProjectModal({ isOpen, onClose, domains, editingProject }: ProjectModalProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [domainsList, setDomainsList] = useState(domains)
 
   useEffect(() => {
@@ -34,10 +36,10 @@ export function ProjectModal({ isOpen, onClose, domains, editingProject }: Proje
           setFormData(prev => ({ ...prev, domain_id: res.data.id }))
         }
       } else {
-        alert(res?.error || 'Failed to create domain.')
+        toast(res?.error || 'Failed to create domain.', 'error')
       }
     } catch (e: any) {
-      alert(e.message || 'Error creating domain inline.')
+      toast(e.message || 'Error creating domain inline.', 'error')
     }
   }
 

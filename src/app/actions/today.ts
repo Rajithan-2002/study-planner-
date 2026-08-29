@@ -141,31 +141,13 @@ export async function getTodayCommandCenterData() {
       .select('*')
       .eq('user_id', userId)
 
-    // Check User Instructions & Active Leave Sprint Mode
-    const { getUserInstructions } = await import('@/app/actions/instructions')
-    const instructions = await getUserInstructions()
-
-    if (instructions.isLeaveSprintActive) {
-      todaysClasses = []
-      tomorrowsClasses = []
-    }
-
     // 7. Proposed Plans
-    let { data: proposedPlans } = await supabase
+    const { data: proposedPlans } = await supabase
       .from('generated_plans')
       .select('*')
       .eq('user_id', userId)
       .eq('plan_date', dateStr)
       .eq('status', 'PROPOSED')
-
-    // If on leave sprint and no active proposed plan exists, propose automatically
-    if (instructions.isLeaveSprintActive && (!proposedPlans || proposedPlans.length === 0)) {
-      const { proposeDailyPlan } = await import('@/app/actions/scheduler')
-      const propRes = await proposeDailyPlan(dateStr, 'LEAVE_7_DAY', true)
-      if (propRes.success && propRes.data) {
-        proposedPlans = [propRes.data]
-      }
-    }
 
     return {
       todaysClasses,
@@ -184,9 +166,7 @@ export async function getTodayCommandCenterData() {
         work_end_time: '18:00'
       },
       conflicts: conflicts || [],
-      proposedPlan: proposedPlans && proposedPlans.length > 0 ? proposedPlans[0] : null,
-      isLeaveSprintActive: instructions.isLeaveSprintActive,
-      instructions
+      proposedPlan: proposedPlans && proposedPlans.length > 0 ? proposedPlans[0] : null
     }
   } catch (err: any) {
     console.error('getTodayCommandCenterData exception:', err)

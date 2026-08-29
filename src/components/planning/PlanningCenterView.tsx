@@ -14,6 +14,7 @@ import {
   deleteAvailabilityException, runPlanningSimulationAction
 } from '@/app/actions/planning'
 import { formatHours } from '@/lib/utils/time'
+import { useToast } from '@/components/ui/Toast'
 
 interface PlanningCenterViewProps {
   dailyPlan: any
@@ -45,6 +46,7 @@ export function PlanningCenterView({
   projects
 }: PlanningCenterViewProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'capacity' | 'habits' | 'fixed' | 'goals' | 'simulator' | 'history'>('today')
 
@@ -255,7 +257,7 @@ export function PlanningCenterView({
       }
 
       if (!finalDeadline) {
-        alert('Please select an entity with a deadline or specify a custom deadline date.')
+        toast('Please select an entity with a deadline or specify a custom deadline date.', 'error')
         setSimulating(false)
         return
       }

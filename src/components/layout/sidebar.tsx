@@ -18,9 +18,11 @@ import {
   Inbox,
   Brain,
   Activity,
-  Target
+  Target,
+  LogOut
 } from 'lucide-react'
 import { getUserProfile } from '@/app/actions/profile'
+import { signOut } from '@/app/auth/actions'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -140,6 +142,17 @@ export function Sidebar() {
             </div>
           )}
         </button>
+
+        <form action={signOut} className="mt-2">
+          <button
+            type="submit"
+            title="Sign out"
+            className={`flex items-center w-full p-2 rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-red-500 transition-colors cursor-pointer ${isCollapsed ? 'justify-center' : 'gap-3'}`}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!isCollapsed && <span className="text-xs font-semibold">Sign out</span>}
+          </button>
+        </form>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { Activity, ShieldCheck, AlertCircle, Play, Undo2, Trash2, CheckCircle2, 
 import { approveAction, rollbackAction, deleteAutonomousAction } from '@/app/actions/autonomous'
 import { Button } from '@/components/ui/button'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
+import { useToast } from '@/components/ui/Toast'
 
 interface AutomationCenterViewProps {
   pendingActions: any[]
@@ -17,6 +18,7 @@ export function AutomationCenterView({
   historyActions = [],
   executionLogs = []
 }: AutomationCenterViewProps) {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'pending' | 'history' | 'templates' | 'logs'>('pending')
   const [isPending, startTransition] = useTransition()
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
@@ -53,7 +55,7 @@ export function AutomationCenterView({
         showSuccess('AI action approved and executed successfully!')
       } else {
         const errorMsg = res.error || (res.errors && res.errors.join(', ')) || 'Failed to execute proposed action.'
-        alert(errorMsg)
+        toast(errorMsg, 'error')
       }
     })
   }
