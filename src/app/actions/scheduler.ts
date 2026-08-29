@@ -219,13 +219,65 @@ export async function saveSchedulerPreferences(formData: FormData) {
   }
 }
 
-// PROPOSE & ACCEPT STRATEGY PLANS
-export async function proposeDailyPlan(planDateStr: string, strategy: string = 'BALANCED') {
+export async function saveSpecialPlan(name: string, dailyHours: number, tasks: { name: string; hours: number; note?: string; type?: string }[]) {
   try {
     const supabase = await createClient()
     const userId = await getCurrentUserId()
 
-    // 1. Fetch preferences
+    const planData = {
+      name,
+      dailyHours,
+      tasks
+    }
+
+    const { data, error } = await supabase.from('generated_plans').insert({
+      user_id: userId,
+      plan_date: new Date().toISOString().split('T')[0],
+      type: 'SPECIAL',
+      status: 'SAVED',
+      plan_data: planData
+    }).select().single()
+
+    if (error) {
+      console.error('Error saving special plan:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/today')
+    return { success: true, data }
+  } catch (err: any) {
+    console.error('saveSpecialPlan exception:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function getSpecialPlans() {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    const { data } = await supabase
+      .from('generated_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('type', 'SPECIAL')
+      .eq('status', 'SAVED')
+      .order('created_at', { ascending: false })
+
+    return data || []
+  } catch (err: any) {
+    console.error('getSpecialPlans exception:', err)
+    return []
+  }
+}
+
+// PROPOSE & ACCEPT STRATEGY PLANS
+export async function proposeDailyPlan(planDateStr: string, strategy: string = 'LEAVE_7_DAY', skipRevalidate = false) {
+  try {
+    const supabase = await createClient()
+    const userId = await getCurrentUserId()
+
+    // Fetch preferences
     let { data: prefs } = await supabase.from('user_schedule_preferences').select('*').eq('user_id', userId).maybeSingle()
     if (!prefs) {
       prefs = {
@@ -238,38 +290,113 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
       }
     }
 
-    // 2. Request daily study plan from the Planning Capacity Engine
-    const dailyPlan = await PlanningCapacityEngine.buildDailyStudyPlan(userId)
+    let proposedTimeline: any[] = []
 
-    // 3. Construct proposed hourly schedule layout using engine recommendations
-    const baseHour = prefs.work_start_time ? Number(prefs.work_start_time.split(':')[0]) : 8
-    let currentHour = baseHour
-    let currentMin = 0
+    if (strategy === 'LEAVE_7_DAY' || strategy === 'SPECIAL_LEAVE_7_DAY') {
+      // 7-Day Leave High-Productivity Sprint (~8.5 hours total)
+      const leaveBlocks = [
+        { name: 'SC-500 Exam Prep (3h)', type: 'STUDY', duration: 180, time: '09:00', note: 'Target 40h material before Aug 21' },
+        { name: 'Java Study - 10h Course (2h)', type: 'STUDY', duration: 120, time: '12:30', note: 'Finish 10h video course during leave' },
+        { name: 'AWS Cloud Practitioner (1h)', type: 'STUDY', duration: 60, time: '14:40', note: '1h/day leave (30m post-leave)' },
+        { name: 'TryHackMe SOC Path (1h)', type: 'DEEP_WORK', duration: 60, time: '15:50', note: 'SOC Analyst Track' },
+        { name: 'CRTA (Certified Red Team Analyst) (1h)', type: 'DEEP_WORK', duration: 60, time: '17:00', note: 'Red Team Track' },
+        { name: 'CLLMSP (30m)', type: 'STUDY', duration: 30, time: '18:10', note: '30m Daily Consistent' },
+      ]
 
-    const proposedTimeline = dailyPlan.allocations.map((alloc) => {
-      const scheduledTime = new Date(`${planDateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`)
-      
-      const durationMins = alloc.allocated_minutes
-      // Increment time counters for next block
-      currentMin += durationMins
-      if (currentMin >= 60) {
-        currentHour += Math.floor(currentMin / 60)
-        currentMin = currentMin % 60
+      proposedTimeline = leaveBlocks.map(b => {
+        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
+        return {
+          title: b.name,
+          type: b.type,
+          status: 'PENDING',
+          duration_minutes: b.duration,
+          is_locked: false,
+          scheduled_at: scheduledTime.toISOString(),
+          reason: b.note,
+          energy_zone: 'HIGH'
+        }
+      })
+    } else if (strategy === 'WEEKEND_MODE') {
+      // 10-Hour Weekend Study Plan
+      const weekendBlocks = [
+        { name: 'SC-500 Intensive Exam Focus (4h)', type: 'STUDY', duration: 240, time: '08:00', note: 'Weekend Deep Study (4h target)' },
+        { name: 'AWS Cloud Practitioner (2h)', type: 'STUDY', duration: 120, time: '13:00', note: 'Weekend Cloud Module (2h target)' },
+        { name: 'TryHackMe & CRTA Lab Practice (2.5h)', type: 'DEEP_WORK', duration: 150, time: '15:30', note: 'Red Team & SOC Hands-on Labs' },
+        { name: 'CLLMSP (1.5h)', type: 'STUDY', duration: 90, time: '18:30', note: 'Extended CLLMSP Review' },
+      ]
+
+      proposedTimeline = weekendBlocks.map(b => {
+        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
+        return {
+          title: b.name,
+          type: b.type,
+          status: 'PENDING',
+          duration_minutes: b.duration,
+          is_locked: false,
+          scheduled_at: scheduledTime.toISOString(),
+          reason: b.note,
+          energy_zone: 'HIGH'
+        }
+      })
+    } else if (strategy.startsWith('SPECIAL_')) {
+      // Custom Special Plan created by user
+      const specialPlanId = strategy.replace('SPECIAL_', '')
+      const { data: specPlan } = await supabase
+        .from('generated_plans')
+        .select('*')
+        .eq('id', specialPlanId)
+        .maybeSingle()
+
+      if (specPlan && specPlan.plan_data && Array.isArray(specPlan.plan_data.tasks)) {
+        let currentHour = 9
+        let currentMin = 0
+
+        proposedTimeline = specPlan.plan_data.tasks.map((t: any) => {
+          const durationMins = Math.round((t.hours || 1) * 60)
+          const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`
+          const scheduledTime = new Date(`${planDateStr}T${timeStr}:00`)
+
+          currentMin += durationMins
+          if (currentMin >= 60) {
+            currentHour += Math.floor(currentMin / 60)
+            currentMin = currentMin % 60
+          }
+
+          return {
+            title: `${t.name} (${t.hours >= 1 ? `${t.hours}h` : `${t.hours * 60}m`})`,
+            type: t.type || 'STUDY',
+            status: 'PENDING',
+            duration_minutes: durationMins,
+            is_locked: false,
+            scheduled_at: scheduledTime.toISOString(),
+            reason: t.note || `${specPlan.plan_data.name} item`,
+            energy_zone: 'HIGH'
+          }
+        })
       }
+    } else {
+      // NORMAL_DAY: Post-campus routine or capacity engine
+      const normalBlocks = [
+        { name: 'SC-500 Exam Focus (2h)', type: 'STUDY', duration: 120, time: '18:00', note: 'Post-campus SC-500 Priority' },
+        { name: 'AWS Cloud Practitioner (30m)', type: 'STUDY', duration: 30, time: '20:15', note: 'Daily 30m Cloud' },
+        { name: 'CLLMSP (30m)', type: 'STUDY', duration: 30, time: '20:50', note: 'Daily 30m CLLMSP' },
+        { name: 'TryHackMe / CRTA Track (1h)', type: 'DEEP_WORK', duration: 60, time: '21:30', note: 'Alternating Cyber Track' },
+      ]
 
-      return {
-        title: `${alloc.name} [${alloc.type}]`,
-        type: alloc.type === 'PROJECT' ? 'PROJECT' : alloc.type === 'CERTIFICATION' ? 'STUDY' : 'DEEP_WORK',
-        status: 'PENDING',
-        duration_minutes: durationMins,
-        is_locked: false,
-        related_entity_type: alloc.type,
-        related_entity_id: alloc.id,
-        scheduled_at: scheduledTime.toISOString(),
-        reason: alloc.reason,
-        energy_zone: alloc.energy_zone
-      }
-    })
+      proposedTimeline = normalBlocks.map(b => {
+        const scheduledTime = new Date(`${planDateStr}T${b.time}:00`)
+        return {
+          title: b.name,
+          type: b.type,
+          status: 'PENDING',
+          duration_minutes: b.duration,
+          is_locked: false,
+          scheduled_at: scheduledTime.toISOString(),
+          reason: b.note,
+          energy_zone: 'MEDIUM'
+        }
+      })
+    }
 
     // Upsert PROPOSED plan
     const planDate = new Date(planDateStr).toISOString().split('T')[0]
@@ -310,7 +437,14 @@ export async function proposeDailyPlan(planDateStr: string, strategy: string = '
 
     await logActivity('PROPOSE_DAILY_PLAN', 'GENERATED_PLAN', plan.id)
 
-    revalidatePath('/today')
+    if (!skipRevalidate) {
+      try {
+        revalidatePath('/today')
+      } catch {
+        // Ignored when called during Server Component render pass
+      }
+    }
+
     return { success: true, data: plan }
   } catch (err: any) {
     console.error('proposeDailyPlan exception:', err)

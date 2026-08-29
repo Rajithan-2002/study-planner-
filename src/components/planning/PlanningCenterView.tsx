@@ -378,7 +378,7 @@ export function PlanningCenterView({
               onClick={() => setActiveTab(t.id as any)}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                 active 
-                  ? 'bg-indigo-650 text-white shadow-md' 
+                  ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md' 
                   : 'bg-slate-50 dark:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >

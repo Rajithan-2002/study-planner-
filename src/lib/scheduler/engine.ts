@@ -37,10 +37,16 @@ export interface ScheduleConflict {
 
 // 1. Calculate workload and zones (GREEN, YELLOW, RED)
 export function calculateWorkload(timeBlocks: TimeBlockData[]) {
-  const activeBlocks = timeBlocks.filter(b => b.status !== 'SKIPPED')
-  const totalMins = activeBlocks.reduce((sum, b) => sum + b.duration_minutes, 0)
-  const studyMins = activeBlocks.filter(b => b.type === 'STUDY').reduce((sum, b) => sum + b.duration_minutes, 0)
-  const projectMins = activeBlocks.filter(b => b.type === 'PROJECT').reduce((sum, b) => sum + b.duration_minutes, 0)
+  const activeBlocks = timeBlocks.filter(b => b.status !== 'SKIPPED' && b.status !== 'CANCELLED')
+  const totalMins = activeBlocks.reduce((sum, b) => sum + (b.duration_minutes || 0), 0)
+  
+  const studyMins = activeBlocks
+    .filter(b => ['STUDY', 'DEEP_WORK', 'CERTIFICATION', 'ACADEMIC', 'LECTURE', 'EXAM_PREP'].includes(b.type?.toUpperCase() || ''))
+    .reduce((sum, b) => sum + (b.duration_minutes || 0), 0)
+    
+  const projectMins = activeBlocks
+    .filter(b => ['PROJECT', 'CODE', 'DEV'].includes(b.type?.toUpperCase() || ''))
+    .reduce((sum, b) => sum + (b.duration_minutes || 0), 0)
 
   let zone = 'GREEN'
   if (totalMins > 480) { // Over 8 hours of work

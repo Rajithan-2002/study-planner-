@@ -226,6 +226,10 @@ export async function getDashboardData() {
       .order('created_at', { ascending: false })
       .limit(3)
 
+    // 11. Fetch User Instructions & Active Sprint
+    const { getUserInstructions } = await import('@/app/actions/instructions')
+    const instructions = await getUserInstructions()
+
     return {
       todaysClasses,
       focusItems: focusItems.slice(0, 5),
@@ -262,7 +266,8 @@ export async function getDashboardData() {
         averageCompletionProbability,
         dailyPlanAllocations: dailyPlan.allocations,
         conflicts
-      }
+      },
+      instructions
     }
   } catch (err: any) {
     console.error('getDashboardData exception:', err)

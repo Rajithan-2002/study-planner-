@@ -37,9 +37,15 @@ export class SchedulerPlatformEngine implements IPlatformEngine {
       let preferences = context?.preferences
 
       const supabase = await createClient()
-      if (!timeBlocks) {
-        const { data } = await supabase.from('time_blocks').select('*').eq('user_id', userId)
-        timeBlocks = data || []
+      if (!timeBlocks || timeBlocks.length === 0) {
+        const todayStr = new Date().toISOString().split('T')[0]
+        const { data: blocks } = await supabase.from('time_blocks').select('*').eq('user_id', userId).gte('scheduled_at', `${todayStr}T00:00:00Z`).lte('scheduled_at', `${todayStr}T23:59:59Z`)
+        if (blocks && blocks.length > 0) {
+          timeBlocks = blocks
+        } else {
+          const { data: propPlan } = await supabase.from('generated_plans').select('plan_data').eq('user_id', userId).eq('plan_date', todayStr).maybeSingle()
+          timeBlocks = propPlan?.plan_data || []
+        }
       }
       if (!preferences) {
         const { data } = await supabase.from('user_schedule_preferences').select('*').eq('user_id', userId).maybeSingle()

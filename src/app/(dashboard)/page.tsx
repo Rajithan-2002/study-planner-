@@ -2,12 +2,13 @@ import { Target, Calendar, AlertCircle, Clock, GraduationCap, Award, Briefcase, 
 import { getDashboardData } from '@/app/actions/dashboard'
 import Link from 'next/link'
 import { QuickCapture } from '@/components/dashboard/QuickCapture'
+import { UserInstructionsWidget } from '@/components/dashboard/UserInstructionsWidget'
 import { formatHours } from '@/lib/utils/time'
 
 export default async function DashboardPage() {
   const data = await getDashboardData()
 
-  const { academicStats, projectStats, certStats, todaysClasses, focusItems, timelineEvents } = data
+  const { academicStats, projectStats, certStats, todaysClasses, focusItems, timelineEvents, instructions } = data
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out pb-20 md:pb-0">
@@ -28,6 +29,11 @@ export default async function DashboardPage() {
           <QuickCapture />
         </div>
       </div>
+
+      {/* USER INSTRUCTIONS & ACTIVE SPRINT WIDGET */}
+      {instructions && (
+        <UserInstructionsWidget initialInstructions={instructions} />
+      )}
 
       {/* MAIN TWO-COLUMN LAYOUT */}
       <div className="flex flex-col lg:flex-row gap-8">
